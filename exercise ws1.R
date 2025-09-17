@@ -8,7 +8,7 @@ trt <- c(4.81,4.17,4.41,3.59,5.87,3.83,6.03,4.89,4.32,4.69)
 group <- gl(2,10,20,labels = c("Ctl","Trt"))
 weight <- c(ctl,trt)
 lm.D9 <- lm(weight~group)
-lm.D90 <-lm(weight~group-1) #omitting
+lm.D90 <-lm(weight~group-1) #omitting intercept
 
 anova(lm.D9)
 summary(lm.D90)
