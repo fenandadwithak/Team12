@@ -21,3 +21,26 @@ for (i in loc_1){
 }
 
 a <- a[-(all_loc)]
+
+# STEP 4.b & 4.c================================================================
+#remove fully uppercase letter exclude I and A, and remove numbers
+upnum_loc <- which(toupper(a)==a & !(a %in% c("I", "A")) | grepl("[0-9]", a))
+a <- a[-(upnum_loc)]
+
+#remove all underscore, dash, parentheses, asterisk
+a <- gsub("[*()_-]", "",a)
+
+# STEP 4.d - 4.f================================================================
+#punctuation split and lower case function
+split_punct <- function (x){
+  punct <- c(",", ".", ";", "!", ":", "?")
+  for (i in punct) {
+    x <- gsub(paste0('[', i, ']'), paste0("#", i), x)
+  }
+  x <- tolower(unlist(strsplit(x, "[#]", perl = TRUE)))
+}
+
+a <- split_punct(a)
+
+#write.table(a,"cleaned_a.txt",sep="\t",row.names=FALSE) #result check
+
