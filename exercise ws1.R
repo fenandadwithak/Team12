@@ -1,5 +1,7 @@
 require(graphics)
 library(debug)
+mtrace(lm)
+?lm
 
 ## Annette Dobson (1998) "An Introduction to Generalized Linear Models"
 ## Page 9: Plant Weight Data
@@ -19,10 +21,3 @@ par(opar)
 
 #less simple examples in "See Also" above
 
-##THATS SO COOL
-<<<<<<< HEAD
-# This is fenanda's edit
-=======
-
-#nurma is trying line 24
->>>>>>> ff721d371cb3d9713b5fa5f3c28e2fb27ca090e1
