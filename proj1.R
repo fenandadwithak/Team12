@@ -51,17 +51,16 @@ b <- which(rank(-freq) <= 1000) #average ties method, rank 1 = words
 #final dataset of b contains indices of top ~1000 from the unique words
 
 # STEP 6========================================================================
-#THE MATRIX FROM THE LECTURE OF 22-09-2025 5PM-6PM
 b_word <- a[b]
 n <- length(a)
 mlag <- 4
 mrow <- n - mlag
 mcol <- mlag + 1
-token <- match(a, b_word)
+M1 <- match(a,b_word) #M1 = token
 
 M <- matrix(NA, mrow, mcol)
 for (i in 0:4) {
-  M[, i+1] <- token[(i+1):(mrow+i)]
+  M[,i+1] <- M1[(i+1):(mrow+i)]
 }
 
 # STEP 7-9======================================================================
@@ -106,11 +105,10 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   
   ## Otherwise sample next token according to combined probabilities
   return (sample(u_all, size = 1, prob = p_all))
-  
 }
 
-out.word <- function(key,M,M1){
-  ck = next.word(key,M,M1)
+out.word <- function(key, M, M1){
+  ck = next.word(key, M, M1)
   print(paste0(key," ",a[ck]))
 }
 
