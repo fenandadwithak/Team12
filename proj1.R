@@ -67,29 +67,52 @@ for (i in 0:4) {
 # STEP 7-9======================================================================
 next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   
+  k.match <- match(key,b_word)
+  loc.key <- which(is.finite(k.match))
+  key.n <- k.match[loc.key]
+  set.seed(1)
   ## If key is too long, use only the last mlag elements
-  if (length(key) > mlag) key <- tail(key, mlag)
+  if (length(key.n) > mlag) key.n <- tail(key.n, mlag)
   
   u_all <- c()          # will store candidate next-word tokens
   p_all <- c()          # will store corresponding probabilities
   
   ## Loop over i = 1...length(key)
   ## Each iteration uses shorter and shorter suffix of the key
-  for (i in seq_along(key)) {
+  for (i in seq_along(key.n)) {
     ## Columns of M to match: from (mlag - length(key) + i) to mlag
-    mc <- mlag - (length(key) - i)  # start column
+    mc <- mlag - (length(key.n) - i)  # start column
     ## Find rows where M[,cols] exactly matches the current suffix of key
-    ii <- colSums(!(t(M[, mc:mlag, drop = FALSE]) == key[i:length(key)]))
+    ii <- colSums(!(t(M[, mc:mlag, drop = FALSE]) == key.n[i:length(key.n)]))
+    row.match <- which(ii == 0 & is.finite(ii))
     
-    if (length(ii) > 0) {
+    if (length(row.match) > 0) {
       ## Get the (mlag+1)-th column for matching rows: the "next token"
       u <- M[row.match, mlag + 1]
       ## Compute probability weight for this suffix
-      prob <- rep(w[length(key) - i + 1] / length(u), length(u))
+      prob <- rep(w[length(key.n) - i + 1] / length(u), length(u))
       
       ## Store results
       u_all <- c(u_all, u)
       p_all <- c(p_all, prob)
     }
   }
+  
+  ## If no matches found, sample a random common word according to freq in M1
+  if (length(u_all) == 0) {
+    tab <- table(M1[!is.na(M1)])
+    return(sample(as.integer(names(tab)), size = 1, prob = tab))
+  }
+  
+  ## Otherwise sample next token according to combined probabilities
+  return (sample(u_all, size = 1, prob = p_all))
+  
 }
+
+out.word <- function(key,M,M1){
+  ck = next.word(key,M,M1)
+  print(paste0(key," ",a[ck]))
+}
+
+out.word(c("romeo", ",", "wherefore"), M, M1)
+next.word(c("romeo", ",", "wherefore"), M, M1)
