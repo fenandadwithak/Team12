@@ -63,3 +63,33 @@ M <- matrix(NA, mrow, mcol)
 for (i in 0:4) {
   M[, i+1] <- token[(i+1):(mrow+i)]
 }
+
+# STEP 7-9======================================================================
+next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
+  
+  ## If key is too long, use only the last mlag elements
+  if (length(key) > mlag) key <- tail(key, mlag)
+  
+  u_all <- c()          # will store candidate next-word tokens
+  p_all <- c()          # will store corresponding probabilities
+  
+  ## Loop over i = 1...length(key)
+  ## Each iteration uses shorter and shorter suffix of the key
+  for (i in seq_along(key)) {
+    ## Columns of M to match: from (mlag - length(key) + i) to mlag
+    mc <- mlag - (length(key) - i)  # start column
+    ## Find rows where M[,cols] exactly matches the current suffix of key
+    ii <- colSums(!(t(M[, mc:mlag, drop = FALSE]) == key[i:length(key)]))
+    
+    if (length(ii) > 0) {
+      ## Get the (mlag+1)-th column for matching rows: the "next token"
+      u <- M[row.match, mlag + 1]
+      ## Compute probability weight for this suffix
+      prob <- rep(w[length(key) - i + 1] / length(u), length(u))
+      
+      ## Store results
+      u_all <- c(u_all, u)
+      p_all <- c(p_all, prob)
+    }
+  }
+}
