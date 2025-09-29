@@ -1,8 +1,7 @@
-a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
+a <- scan("Latihan Project 1/shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
 # STEP 4.a =====================================================================
-
 loc_1 <- grep("[",a,fixed=TRUE) #location/index of [
 length_a <- length(a)
 
@@ -69,7 +68,7 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   k.match <- match(key,b_word)
   loc.key <- which(is.finite(k.match))
   key.n <- k.match[loc.key]
-  set.seed(1)
+  ##set.seed(1)
   ## If key is too long, use only the last mlag elements
   if (length(key.n) > mlag) key.n <- tail(key.n, mlag)
   
@@ -108,15 +107,19 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   return (sample(u_all, size = 1, prob = p_all))
 }
 
+
 femael.predict <- function(M, M1) {
   repeat {
     key <- readline(prompt = "Please input the key: ")
     
-    if (length(key) == 1 && is.na(suppressWarnings(as.numeric(key)))) {
-      key <- unlist(strsplit(key, " "))
-      key <- split_punct(key)
+    if (length(key) > 0 && 
+        is.na(suppressWarnings(as.numeric(key))) &&
+        key!="") {
+      
       # Generate words until we reach 5 tokens total
       while (length(key) < 5) {
+        key <- unlist(strsplit(key, " "))
+        key <- split_punct(key)
         nxt <- next.word(key, M, M1)
         key <- c(key, a[nxt])  # append predicted word
       }
@@ -130,5 +133,5 @@ femael.predict <- function(M, M1) {
   }
 }
 
-femael.predict(M, M1)
-Romeo
+femael.predict(M,M1)
+romeo
