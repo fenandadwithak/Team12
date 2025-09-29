@@ -1,4 +1,4 @@
-a <- scan("Latihan Project 1/shakespeare.txt",what="character",skip=83,nlines=196043-83,
+a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
 # STEP 4.a =====================================================================
