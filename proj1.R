@@ -1,3 +1,5 @@
+start.time <- Sys.time()
+
 a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
@@ -135,3 +137,6 @@ femael.predict <- function(M, M1) {
 
 femael.predict(M,M1)
 romeo
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
