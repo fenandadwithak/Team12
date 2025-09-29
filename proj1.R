@@ -88,6 +88,7 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
     if (length(row.match) > 0) {
       ## Get the (mlag+1)-th column for matching rows: the "next token"
       u <- M[row.match, mlag + 1]
+      u <- u[!is.na(u)]
       ## Compute probability weight for this suffix
       prob <- rep(w[length(key.n) - i + 1] / length(u), length(u))
       
@@ -114,9 +115,14 @@ femael.predict <- function(M, M1) {
     if (length(key) == 1 && is.na(suppressWarnings(as.numeric(key)))) {
       key <- unlist(strsplit(key, " "))
       key <- split_punct(key)
-      nxt <- next.word(key, M, M1)
+      # Generate words until we reach 5 tokens total
+      while (length(key) < 5) {
+        nxt <- next.word(key, M, M1)
+        key <- c(key, a[nxt])  # append predicted word
+      }
+      
       cat("The result is:\n")
-      print(paste(c(key, a[nxt]), collapse = " "))
+      print(paste(key, collapse = " "))
       break #Exit loop if condition is satisfied
     } else {
       cat("Invalid input. Please input another key.\n")
@@ -125,3 +131,4 @@ femael.predict <- function(M, M1) {
 }
 
 femael.predict(M, M1)
+Romeo
