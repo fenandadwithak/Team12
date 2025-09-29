@@ -107,10 +107,21 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   return (sample(u_all, size = 1, prob = p_all))
 }
 
-out.word <- function(key, M, M1){
-  ck = next.word(key, M, M1)
-  print(paste0(key," ",a[ck]))
+femael.predict <- function(M, M1) {
+  repeat {
+    key <- readline(prompt = "Please input the key: ")
+    
+    if (length(key) == 1 && is.na(suppressWarnings(as.numeric(key)))) {
+      key <- unlist(strsplit(key, " "))
+      key <- split_punct(key)
+      nxt <- next.word(key, M, M1)
+      cat("The result is:\n")
+      print(paste(c(key, a[nxt]), collapse = " "))
+      break #Exit loop if condition is satisfied
+    } else {
+      cat("Invalid input. Please input another key.\n")
+    }
+  }
 }
 
-out.word(c("romeo", ",", "wherefore"), M, M1)
-next.word(c("romeo", ",", "wherefore"), M, M1)
+femael.predict(M, M1)
