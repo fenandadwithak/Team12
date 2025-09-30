@@ -1,3 +1,18 @@
+# PROJECT 1 - EXTENDED STATISTICAL PROGRAMMING =================
+
+# Group 12 
+# Aseel Alghamdi : S2901228
+# Fenanda Dwitha Kurniasari : S2744048
+# Nurmawiya : S2822251
+
+# Aseel : Tabulating common words and matrix M preparation, femael.predict
+# Fenanda : Removing stage direction, creating next.word & femael.predict
+# Nurmawiya : Removing full uppercase & number, create split_punct & next.word
+
+# Notes :
+# Femael.predict is function which allows you to input keywords and display
+# the output resulted in next.word (predicted token(s)) into predicted word(s)
+
 a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
@@ -108,6 +123,7 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
 }
 
 
+# STEP 7-9======================================================================
 femael.predict <- function(M, M1) {
   repeat {
     key <- readline(prompt = "Please input the key: ")
