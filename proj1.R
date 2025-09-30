@@ -14,8 +14,6 @@
 # keywords and display the output resulted in next.word (predicted token(s))
 # into predicted word(s)
 
-start_ <- Sys.time()
-
 a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
@@ -27,7 +25,7 @@ all_loc <- NULL
 for (i in loc_1){
   #locating stage directions within next 100 words with close square bracket ]
   loc_2 <- grep("]",a[i:min((i+100),length_a)],fixed=TRUE)
-  #locating full stop. for unmatched brackets
+  #locating full stop (.) for unmatched brackets
   loc_3 <- grep(".",a[i:min((i+100),length_a)],fixed=TRUE)
   
   #locating words to exclude
@@ -61,13 +59,11 @@ split_punct <- function (x){
 
 a <- split_punct(a)
 
-write.table(a,"cleaned_a.txt",sep="\t",row.names=FALSE) #preprocess result check
-
 # Tabulating common words
 b <- unique(a)
 freq <- tabulate(match(a,b))
-b <- which(rank(-freq) <= 1004) #average ties method, rank 1 = most common word
-#final dataset of b contains indices of top ~1000 from the unique words
+b <- which(rank(-freq) <= 1000) #average ties method, rank 1 = most common word
+#final dataset of b contains indices of top ~1000 words from the unique words
 
 # Preparing M and M1 matrices
 b_word <- a[b]
@@ -92,12 +88,13 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   loc.key <- which(is.finite(k.match))
   key.n   <- k.match[loc.key]
   
-  ## If key is too long, use only the last mlag elements
+  # If key > 4, use only the last mlag elements
   if (length(key.n) > mlag) key.n <- tail(key.n, mlag)
   
-  # find matching row
   if (length(key.n) != 0) {
-    ii <- colSums(!(t(M[, 1:length(key.n), drop = FALSE]) == key.n))
+    mc <- mlag - (length(key.n) - 1)  # start column
+    # find matching row
+    ii <- colSums(!(t(M[, mc:mlag, drop = FALSE]) == key.n))
   }
   match.row <- which(ii == 0 & is.finite(ii))
   
@@ -106,22 +103,23 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
     chosen <- match.row
     nxt <- M[chosen, length(key.n) + 1]
     nxt.word <- b_word[nxt] 
-    # Condition 2 - Token key(s) match with n j-th row
-    # Calculate weight each row and sample a row based weighted probability
+    
+  # Condition 2 - Token key(s) match with n j-th row
+    # Calculate weight each row and sample a row based on weighted probability
   } else if (length(match.row) > 1) {
     w <- rep(1,length(match.row))
     chosen <- sample(match.row, 1, prob = w)
     nxt <- M[chosen, length(key.n) + 1]
     nxt.word <- b_word[nxt] 
-    # Condition 3 - Token key(s) doesn't match with any row in M
-    # Calculate weight in M1 and sample a "word" based weighted probability
+   
+  # Condition 3 - Token key(s) doesn't match with any row in M
+    # Calculate weight in M1 and sample a "word" based on weighted probability
   } else {
-    set.seed(494)
     nxt <- sample(M1, 1, prob = rep(1, length(M1)))
     nxt.word <- a[nxt] 
   }
   
-  # If nxt.word NA, then sample again M1 and exlude NA based weighted prob
+  # If nxt.word = NA, then sample again M1 and exlude NA based on weighted prob
   if (is.na(nxt.word)) {
     
     nxt <- sample(M1[!is.na(M1)], 1, prob = rep(1, sum(!is.na(M1))))
@@ -130,8 +128,8 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   return(nxt.word)
 }
 
-
 # Keyword(s) input and return the predicted results
+set.seed(148)
 femael.predict <- function(M, M1) {
   repeat {
     key <- readline(prompt = "Please input the key: ")
@@ -144,10 +142,9 @@ femael.predict <- function(M, M1) {
       while (length(key) < 5) {
         key <- unlist(strsplit(key, " "))
         key <- split_punct(key)
-        nxt <- next.word(key, M, M1)
-        key <- c(key, a[nxt])  # append predicted word
+        nxt.w <- next.word(key, M, M1)
+        key <- c(key, nxt.w)  # append predicted word
       }
-      
       cat("The result is:\n")
       print(paste(key, collapse = " "))
       break #Exit loop if condition is satisfied
@@ -159,7 +156,3 @@ femael.predict <- function(M, M1) {
 
 femael.predict(M,M1)
 Romeo
-
-end_ <- Sys.time()
-time_ <- end_ - start_
-time_
