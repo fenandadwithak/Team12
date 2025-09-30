@@ -101,18 +101,18 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   # Condition 1 - Token key(s) exactly match with j-th row
   if (length(match.row) == 1) {
     chosen <- match.row
-    nxt <- M[chosen, length(key.n) + 1]
+    nxt <- M[chosen, mlag + 1]
     nxt.word <- b_word[nxt] 
     
-  # Condition 2 - Token key(s) match with n j-th row
+    # Condition 2 - Token key(s) match with n j-th row
     # Calculate weight each row and sample a row based on weighted probability
   } else if (length(match.row) > 1) {
     w <- rep(1,length(match.row))
     chosen <- sample(match.row, 1, prob = w)
-    nxt <- M[chosen, length(key.n) + 1]
+    nxt <- M[chosen, mlag + 1]
     nxt.word <- b_word[nxt] 
-   
-  # Condition 3 - Token key(s) doesn't match with any row in M
+    
+    # Condition 3 - Token key(s) doesn't match with any row in M
     # Calculate weight in M1 and sample a "word" based on weighted probability
   } else {
     nxt <- sample(M1, 1, prob = rep(1, length(M1)))
