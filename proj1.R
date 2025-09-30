@@ -1,34 +1,36 @@
-<<<<<<< HEAD
-# PROJECT 1 - EXTENDED STATISTICAL PROGRAMMING =================
+# PROJECT 1 - EXTENDED STATISTICAL PROGRAMMING =================================
 
 # Group 12 
 # Aseel Alghamdi : S2901228
 # Fenanda Dwitha Kurniasari : S2744048
 # Nurmawiya : S2822251
 
-# Aseel : Tabulating common words and matrix M preparation, femael.predict
+# Aseel : Tabulating common words, matrix M preparation, femael.predict
 # Fenanda : Removing stage direction, creating next.word & femael.predict
-# Nurmawiya : Removing full uppercase & number, create split_punct & next.word
+# Nurmawiya : Removing full uppercase & number, creating split_punct & next.word
 
 # Notes :
-# Femael.predict is function which allows you to input keywords and display
-# the output resulted in next.word (predicted token(s)) into predicted word(s)
-=======
-start.time <- Sys.time()
->>>>>>> eeb23776d6eba5ebc70837d78d7e4258495b79a2
+# Femael.predict function (stands for Fenanda, Nurma, Aseel) allows you to input
+# keywords and display the output resulted in next.word (predicted token(s))
+# into predicted word(s)
+
+start_ <- Sys.time()
 
 a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
 
-# STEP 4.a =====================================================================
-loc_1 <- grep("[",a,fixed=TRUE) #location/index of [
+# Removing stage directions
+loc_1 <- grep("[",a,fixed=TRUE) #locating open square bracket [
 length_a <- length(a)
 
 all_loc <- NULL
 for (i in loc_1){
+  #locating stage directions within next 100 words with close square bracket ]
   loc_2 <- grep("]",a[i:min((i+100),length_a)],fixed=TRUE)
+  #locating full stop. for unmatched brackets
   loc_3 <- grep(".",a[i:min((i+100),length_a)],fixed=TRUE)
   
+  #locating words to exclude
   if(length(loc_2)>0){
     loc_exc <- c(i:(loc_2[1]+(i)-(1)))
   } else{loc_exc <- c(i:(loc_3[1]+(i)-(1)))}
@@ -38,18 +40,17 @@ for (i in loc_1){
           all_loc <- append(all_loc,loc_exc))
 }
 
+#Removing stage directions from a
 a <- a[-(all_loc)]
 
-# STEP 4.b & 4.c================================================================
-#remove fully uppercase letter exclude I and A, and remove numbers
+#Removing full-uppercase letter exclude I and A, and removing numbers from a
 upnum_loc <- which(toupper(a)==a & !(a %in% c("I", "A")) | grepl("[0-9]", a))
 a <- a[-(upnum_loc)]
 
-#remove all underscore, dash, parentheses, asterisk
+#Removing underscore, dash, parentheses and asterisk from a
 a <- gsub("[*()_-]", "",a)
 
-# STEP 4.d - 4.f================================================================
-#punctuation split and lower case function
+#Splitting punctuation marks from every word and lowercase
 split_punct <- function (x){
   punct <- c(",", ".", ";", "!", ":", "?")
   for (i in punct) {
@@ -60,15 +61,15 @@ split_punct <- function (x){
 
 a <- split_punct(a)
 
-#write.table(a,"cleaned_a.txt",sep="\t",row.names=FALSE) #result check
+write.table(a,"cleaned_a.txt",sep="\t",row.names=FALSE) #preprocess result check
 
-# STEP 5========================================================================
+# Tabulating common words
 b <- unique(a)
 freq <- tabulate(match(a,b))
-b <- which(rank(-freq) <= 1000) #average ties method, rank 1 = words
+b <- which(rank(-freq) <= 1004) #average ties method, rank 1 = most common word
 #final dataset of b contains indices of top ~1000 from the unique words
 
-# STEP 6========================================================================
+# Preparing M and M1 matrices
 b_word <- a[b]
 n <- length(a)
 mlag <- 4
@@ -81,53 +82,53 @@ for (i in 0:4) {
   M[,i+1] <- M1[(i+1):(mrow+i)]
 }
 
-# STEP 7-9======================================================================
+# Predicting the next word tokens
 next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   
   k.match <- match(key,b_word)
   loc.key <- which(is.finite(k.match))
   key.n <- k.match[loc.key]
-  ##set.seed(1)
-  ## If key is too long, use only the last mlag elements
+
+  # If key > 4, use only the last mlag elements
   if (length(key.n) > mlag) key.n <- tail(key.n, mlag)
   
-  u_all <- c()          # will store candidate next-word tokens
-  p_all <- c()          # will store corresponding probabilities
+  u_all <- c()          # to store next-word tokens canddidate
+  p_all <- c()          # to store corresponding probabilities
   
-  ## Loop over i = 1...length(key)
-  ## Each iteration uses shorter and shorter suffix of the key
+  # Loop i from 1 until length(key)
+  # Each iteration uses shorter and shorter suffix of the key
   for (i in seq_along(key.n)) {
-    ## Columns of M to match: from (mlag - length(key) + i) to mlag
+    # Columns of M to match: from (mlag - length(key) + i) to mlag
     mc <- mlag - (length(key.n) - i)  # start column
-    ## Find rows where M[,cols] exactly matches the current suffix of key
+    # Find rows where M[,cols] exactly matches the current suffix of key
     ii <- colSums(!(t(M[, mc:mlag, drop = FALSE]) == key.n[i:length(key.n)]))
     row.match <- which(ii == 0 & is.finite(ii))
     
     if (length(row.match) > 0) {
-      ## Get the (mlag+1)-th column for matching rows: the "next token"
+      # Get the (mlag+1)-th column for matching rows: the "next token"
       u <- M[row.match, mlag + 1]
       u <- u[!is.na(u)]
-      ## Compute probability weight for this suffix
+      # Compute probability weight for this suffix
       prob <- rep(w[length(key.n) - i + 1] / length(u), length(u))
       
-      ## Store results
+      # Store results
       u_all <- c(u_all, u)
       p_all <- c(p_all, prob)
     }
   }
   
-  ## If no matches found, sample a random common word according to freq in M1
+  # If no matches found, sample a random common word according to freq in M1
   if (length(u_all) == 0) {
     tab <- table(M1[!is.na(M1)])
     return(sample(as.integer(names(tab)), size = 1, prob = tab))
   }
   
-  ## Otherwise sample next token according to combined probabilities
+  # Otherwise sample next token according to combined probabilities
   return (sample(u_all, size = 1, prob = p_all))
 }
 
 
-# STEP 7-9======================================================================
+# Keyword(s) input and return the predicted results
 femael.predict <- function(M, M1) {
   repeat {
     key <- readline(prompt = "Please input the key: ")
@@ -154,7 +155,8 @@ femael.predict <- function(M, M1) {
 }
 
 femael.predict(M,M1)
-romeo
-end.time <- Sys.time()
-time.taken <- end.time - start.time
-time.taken
+Romeo
+
+end_ <- Sys.time()
+time_ <- end_ - start_
+time_
