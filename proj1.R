@@ -85,46 +85,49 @@ for (i in 0:4) {
 # Predicting the next word tokens
 next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   
-  k.match <- match(key,b_word)
+  ii = c()
+  match.row = c()
+  
+  k.match <- match(key, b_word)
   loc.key <- which(is.finite(k.match))
-  key.n <- k.match[loc.key]
-
-  # If key > 4, use only the last mlag elements
+  key.n   <- k.match[loc.key]
+  
+  ## If key is too long, use only the last mlag elements
   if (length(key.n) > mlag) key.n <- tail(key.n, mlag)
   
-  u_all <- c()          # to store next-word tokens canddidate
-  p_all <- c()          # to store corresponding probabilities
+  # find matching row
+  if (length(key.n) != 0) {
+    ii <- colSums(!(t(M[, 1:length(key.n), drop = FALSE]) == key.n))
+  }
+  match.row <- which(ii == 0 & is.finite(ii))
   
-  # Loop i from 1 until length(key)
-  # Each iteration uses shorter and shorter suffix of the key
-  for (i in seq_along(key.n)) {
-    # Columns of M to match: from (mlag - length(key) + i) to mlag
-    mc <- mlag - (length(key.n) - i)  # start column
-    # Find rows where M[,cols] exactly matches the current suffix of key
-    ii <- colSums(!(t(M[, mc:mlag, drop = FALSE]) == key.n[i:length(key.n)]))
-    row.match <- which(ii == 0 & is.finite(ii))
+  # Condition 1 - Token key(s) exactly match with j-th row
+  if (length(match.row) == 1) {
+    chosen <- match.row
+    nxt <- M[chosen, length(key.n) + 1]
+    nxt.word <- b_word[nxt] 
+    # Condition 2 - Token key(s) match with n j-th row
+    # Calculate weight each row and sample a row based weighted probability
+  } else if (length(match.row) > 1) {
+    w <- rep(1,length(match.row))
+    chosen <- sample(match.row, 1, prob = w)
+    nxt <- M[chosen, length(key.n) + 1]
+    nxt.word <- b_word[nxt] 
+    # Condition 3 - Token key(s) doesn't match with any row in M
+    # Calculate weight in M1 and sample a "word" based weighted probability
+  } else {
+    set.seed(494)
+    nxt <- sample(M1, 1, prob = rep(1, length(M1)))
+    nxt.word <- a[nxt] 
+  }
+  
+  # If nxt.word NA, then sample again M1 and exlude NA based weighted prob
+  if (is.na(nxt.word)) {
     
-    if (length(row.match) > 0) {
-      # Get the (mlag+1)-th column for matching rows: the "next token"
-      u <- M[row.match, mlag + 1]
-      u <- u[!is.na(u)]
-      # Compute probability weight for this suffix
-      prob <- rep(w[length(key.n) - i + 1] / length(u), length(u))
-      
-      # Store results
-      u_all <- c(u_all, u)
-      p_all <- c(p_all, prob)
-    }
+    nxt <- sample(M1[!is.na(M1)], 1, prob = rep(1, sum(!is.na(M1))))
+    nxt.word <- a[nxt]
   }
-  
-  # If no matches found, sample a random common word according to freq in M1
-  if (length(u_all) == 0) {
-    tab <- table(M1[!is.na(M1)])
-    return(sample(as.integer(names(tab)), size = 1, prob = tab))
-  }
-  
-  # Otherwise sample next token according to combined probabilities
-  return (sample(u_all, size = 1, prob = p_all))
+  return(nxt.word)
 }
 
 
