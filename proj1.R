@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PROJECT 1 - EXTENDED STATISTICAL PROGRAMMING =================
 
 # Group 12 
@@ -12,6 +13,9 @@
 # Notes :
 # Femael.predict is function which allows you to input keywords and display
 # the output resulted in next.word (predicted token(s)) into predicted word(s)
+=======
+start.time <- Sys.time()
+>>>>>>> eeb23776d6eba5ebc70837d78d7e4258495b79a2
 
 a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
           fileEncoding="UTF-8")
@@ -151,3 +155,6 @@ femael.predict <- function(M, M1) {
 
 femael.predict(M,M1)
 romeo
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
