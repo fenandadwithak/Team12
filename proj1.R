@@ -14,28 +14,28 @@
 # keywords and display the output resulted in next.word (predicted token(s))
 # into predicted word(s)
 
-a <- scan("shakespeare.txt",what="character",skip=83,nlines=196043-83,
+a <- scan("shakespeare.txt", what="character", skip=83, nlines=196043-83,
           fileEncoding="UTF-8")
 
 # Removing stage directions
-loc_1 <- grep("[",a,fixed=TRUE) #locating open square bracket [
+loc_1 <- grep("[", a, fixed=TRUE) #locating open square bracket [
 length_a <- length(a)
 
 all_loc <- NULL
 for (i in loc_1){
   #locating stage directions within next 100 words with close square bracket ]
-  loc_2 <- grep("]",a[i:min((i+100),length_a)],fixed=TRUE)
+  loc_2 <- grep("]", a[i:min((i+100), length_a)], fixed=TRUE)
   #locating full stop (.) for unmatched brackets
-  loc_3 <- grep(".",a[i:min((i+100),length_a)],fixed=TRUE)
+  loc_3 <- grep(".", a[i:min((i+100),length_a)], fixed=TRUE)
   
   #locating words to exclude
-  if(length(loc_2)>0){
-    loc_exc <- c(i:(loc_2[1]+(i)-(1)))
-  } else{loc_exc <- c(i:(loc_3[1]+(i)-(1)))}
+  if(length(loc_2) > 0){
+    loc_exc <- c(i:(loc_2[1] + (i) - (1)))
+  } else{loc_exc <- c(i:(loc_3[1] + (i) - (1)))}
   
-  ifelse (i==loc_1[1], 
+  ifelse (i == loc_1[1], 
           all_loc <- loc_exc, 
-          all_loc <- append(all_loc,loc_exc))
+          all_loc <- append(all_loc, loc_exc))
 }
 
 #Removing stage directions from a
@@ -46,11 +46,11 @@ upnum_loc <- which(toupper(a)==a & !(a %in% c("I", "A")) | grepl("[0-9]", a))
 a <- a[-(upnum_loc)]
 
 #Removing underscore, dash, parentheses and asterisk from a
-a <- gsub("[*()_-]", "",a)
+a <- gsub("[*()_-]", "", a)
 
 #Splitting punctuation marks from every word and lowercase
+punct <- c(",", ".", ";", "!", ":", "?")
 split_punct <- function (x){
-  punct <- c(",", ".", ";", "!", ":", "?")
   for (i in punct) {
     x <- gsub(paste0('[', i, ']'), paste0("#", i), x)
   }
@@ -71,18 +71,18 @@ n <- length(a)
 mlag <- 4
 mrow <- n - mlag
 mcol <- mlag + 1
-M1 <- match(a,b_word) #M1 = token
+M1 <- match(a, b_word) #M1 = token
 
 M <- matrix(NA, mrow, mcol)
 for (i in 0:4) {
-  M[,i+1] <- M1[(i+1):(mrow+i)]
+  M[,i+1] <- M1[(i+1) : (mrow+i)]
 }
 
 # Predicting the next word tokens
 next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
   
-  ii = c()
-  match.row = c()
+  ii <- c()
+  match.row <- c()
   
   k.match <- match(key, b_word)
   loc.key <- which(is.finite(k.match))
@@ -129,8 +129,8 @@ next.word <- function(key, M, M1, w = rep(1, ncol(M) - 1)) {
 }
 
 # Keyword(s) input and return the predicted results
-set.seed(148)
 femael.predict <- function(M, M1) {
+  set.seed(17)
   repeat {
     key <- readline(prompt = "Please input the key: ")
     
@@ -138,15 +138,18 @@ femael.predict <- function(M, M1) {
         is.na(suppressWarnings(as.numeric(key))) &&
         key!="") {
       
-      # Generate words until we reach 5 tokens total
-      while (length(key) < 5) {
+      # Generate words until we reach full stop
+      while (length(grep (".", key, fixed = TRUE)) == 0) {
         key <- unlist(strsplit(key, " "))
         key <- split_punct(key)
         nxt.w <- next.word(key, M, M1)
         key <- c(key, nxt.w)  # append predicted word
       }
       cat("The result is:\n")
-      print(paste(key, collapse = " "))
+      #removing spaces before punctuation
+      res <- gsub("  ([[:punct:]])", "\\1", paste(key, collapse = " "))
+      res <- gsub(" ([[:punct:]])", "\\1", paste(res, collapse = " "))
+      print(res)
       break #Exit loop if condition is satisfied
     } else {
       cat("Invalid input. Please input another key.\n")
