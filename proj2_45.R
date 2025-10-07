@@ -12,8 +12,6 @@ plot.seir <- function(res, title = "SEIR Dynamics") {
 
 # Compare 
 set.seed(123)
-n <- 1000
-h <- make.households(n)
 beta <- runif(n)
 alink <- get.net(beta, nc = 15, h = h)
 
