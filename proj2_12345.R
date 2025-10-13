@@ -104,16 +104,16 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
   # y-axis : number of individuals per states
   #          explanation of y-axis
   #          ---------------------|
-  #          at the initial day,number of suspectible individual is the largest
+  #          at the initial day, number of susceptible individual is the largest
   #          total individuals in all states S+E+I+R = 1000
   #          these numbers would dynamically change day by day in each states
-  #            depend on the defined models
+  #          depend on the defined models
   
   # input : nseir model from function nseir 
   # output : Dynamic Plot days vs number of individuals per states
   
   #ylim = c(0, max(res$S, res$E, res$I, res$R))
-  # Plot the states in S(suspectible)
+  # Plot the states in S(susceptible)
   # plot the initial day, where 
   plot(res$t, res$S, type = "p", ylim = c(0, max(res$S)),
        xlab = "Days", ylab = "Number of individuals",
