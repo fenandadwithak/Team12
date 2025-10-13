@@ -3,7 +3,7 @@ n <- 1000 #population size
 hmax <- 5 #maximum household size
 
 #creating n vector of which the number refers to household
-#and the occurences refers to size of corresponding household
+#and the occurrences refers to size of corresponding household
 set.seed(3)
 h <- rep(1:n, times = sample(1:hmax, n, replace=TRUE))[1:n]
 
@@ -76,7 +76,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
       contacts <- contacts[state[contacts] == "S"]
       newE[contacts] <- newE[contacts] | (runif(length(contacts)) < alpha[2])
       
-      # random mixing: infect random susceptibles
+      # random mixing: infect random susceptible
       targets <- which(state == "S")
       #S -> E
       p_random <- alpha[3]*nc*beta[i]*beta[targets]/(beta_bar^2 * (n - 1))
@@ -134,7 +134,7 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
 set.seed(123)
 
 # Setting up beta vector and alink pairs
-# beta = vector of n values (n = 1000) which is uniform (0,1) distributed
+# beta = vector of n values (n = 1000) ~ U(0,1)
 beta <- runif(n); alink <- get.net(beta, nc = 15, h = h)
 
 # Scenario 1: Full model
