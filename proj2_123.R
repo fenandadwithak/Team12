@@ -3,9 +3,8 @@ n <- 1000 #population size
 hmax <- 5 #maximum household size
 #creating n vector of which the number refers to household
 #and the occurences refers to size of corresponding household
-prob <- rep (1/hmax, hmax) #probability of discrete uniform for each size
 set.seed(3)
-h <- sample(rep(1:n, times=sample(1:hmax, n, replace=TRUE, prob = prob))[1:n])
+h <- rep(1:n, times=sample(1:hmax, n, replace=TRUE))[1:n]
 
 # 2) Contact network
 #nc = average number of contacts per person
