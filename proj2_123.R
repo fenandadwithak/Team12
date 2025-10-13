@@ -40,7 +40,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
   #SEIR stochastic simulation model
   #beta: sociability parameter of each person
   #h: household list
-  #alink: list of regular contacs of each person returned by get.net
+  #alink: list of regular contacts of each person returned by get.net
   #alpha[1]: daily prob i infecting j if in same household (alpha h)
   #alpha[2]: daily prob i infecting j if in regular contact (alpha c)
   #alpha[3]: daily prob i infecting j through random mixing (alpha r)
@@ -69,7 +69,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
     for (i in which(state == "I")) {
       # household infections: infect susceptible in same household
       hh_members <- which(h == h[i] & state == "S")
-      newE[hh_members]<-newE[hh_members]|(runif(length(hh_members))< alpha[1])
+      newE[hh_members] <- newE[hh_members]|(runif(length(hh_members))< alpha[1])
       
       # network infections: infect regular contacts from alink
       contacts <- alink[[i]]
@@ -78,6 +78,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
       
       # random mixing: infect random susceptibles
       targets <- which(state == "S")
+      #S -> E
       p_random <- alpha[3]*nc*beta[i]*beta[targets]/(beta_bar^2 * (n - 1))
       newE[targets] <- newE[targets] | (runif(length(targets)) < p_random)
     }
@@ -91,6 +92,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
     res[t, ] <- table(factor(state, levels = c("S", "E", "I", "R")))
   }
   
+  #returns a list of elements S, E, I, R
   return(data.frame(t = 1:nt, res))
 }
 
