@@ -12,8 +12,11 @@
 # Nurmawiya : create nseir function, cross-check code, cross-check the entire 
 #             code and revise comments
 
-
 # SEIR (Suspectible, Exposed, Infections, Recovered) Model Simulation
+# Goals : create a model and how its use to investigate the role of household
+#         and network structure on epidemic dynamics.
+
+
 # 1) Create n people assigned to corresponding household where maximum size is 5
   n <- 1000 #population size
   hmax <- 5 #maximum household size
@@ -27,6 +30,8 @@ get.net <- function (beta, nc=15, h) {
   # Function to create links (daily contacts) for each person
   # nc: average number of contacts per person
   # beta: sociability parameter, higher means more likely to form links
+  
+  # output: list of connected networks from each person
   n <- length(beta)
   beta_bar <- mean(beta) #mean sociability parameter
   links <- vector("list", n) #set null vector for links of each person
@@ -171,7 +176,8 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
   # Scenario 1: Full model with default parameters
   res1 <- nseir(beta, h, alink)
 
-  # Scenario 2: Random mixing - Setting alpha[1] = alpha[2] = 0 and alpha[3] = 0.04
+  # Scenario 2: Random mixing - Setting alpha[1] = alpha[2] = 0 and 
+  #             alpha[3] = 0.04
   res2 <- nseir(beta, h, alink, alpha = c(0, 0, 0.04))
 
   # Scenario 3: Full model with constant beta (beta vector = average beta)
