@@ -137,16 +137,16 @@ set.seed(123)
 # beta = vector of n values (n = 1000) ~ U(0,1)
 beta <- runif(n); alink <- get.net(beta, nc = 15, h = h)
 
-# Scenario 1: Full model
+#Scenario 1: Full model with default parameters
 res1 <- nseir(beta, h, alink)
 
-# Scenario 2: Random mixing only
+#Scenario 2: Random mixing - Setting alpha[1] = alpha[2] = 0 and alpha[3] = 0.04
 res2 <- nseir(beta, h, alink, alpha = c(0, 0, 0.04))
 
-# Scenario 3: Constant beta only
+#Scenario 3: Full model with constant beta (beta vector = average beta)
 res3 <- nseir(rep(mean(beta), n), h, alink)
 
-# Scenario 4: Constant beta + random mixing
+#Scenario 4: Constant beta + random mixing
 res4 <- nseir(rep(mean(beta), n), h, alink, alpha = c(0, 0, 0.04))
 
 # --- Plot all scenarios side by side
