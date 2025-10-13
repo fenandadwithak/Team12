@@ -17,7 +17,7 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
   #ylim = c(0, max(res$S, res$E, res$I, res$R))
   # Plot the states in S(suspectible)
   # plot the initial day, where 
-  plot(res$t, res$S, type = "p", ylim = c(0, max(res$S, res$E, res$I, res$R)),
+  plot(res$t, res$S, type = "p", ylim = c(0, max(res$S)),
        xlab = "Days", ylab = "Number of individuals",
        col = "blue", pch = 1, main = title)
   
@@ -28,7 +28,7 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
   
   # Add legend
   legend("right", legend = c("S", "E", "I", "R"),
-         col = c("blue", "orange", "red", "darkgreen"), pch =1)
+         col = c("blue", "orange", "red", "darkgreen"), pch =c(1,1,1,1))
 }
 
 
@@ -50,7 +50,7 @@ res3 <- nseir(rep(mean(beta), n), h, alink)
 res4 <- nseir(rep(mean(beta), n), h, alink, alpha = c(0, 0, 0.04))
 
 # --- Plot all scenarios side by side
-par(mfrow = c(2, 2))
+par(mfrow = c(2,2))
 dyn.plot(res1, "Full Model")
 dyn.plot(res2, "Random Mixing Only")
 dyn.plot(res3, "Constant Beta")

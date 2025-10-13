@@ -97,23 +97,45 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
 }
 
 # 4) Function Plot
-plot.seir <- function(res, title = "SEIR Dynamics") {
-  plot(res$t, res$S, type = "l", ylim = c(0, max(res$S)),
+dyn.plot <- function(res, title = "SEIR Dynamics") {
+  # Function to create dynamics plot of the simulated population in each states
+  
+  # x-axis : days to simulate (from 1 to 100)
+  # y-axis : number of individuals per states
+  #          explanation of y-axis
+  #          ---------------------|
+  #          at the initial day,number of suspectible individual is the largest
+  #          total individuals in all states S+E+I+R = 1000
+  #          these numbers would dynamically change day by day in each states
+  #            depend on the defined models
+  
+  # input : nseir model from function nseir 
+  # output : Dynamic Plot days vs number of individuals per states
+  
+  #ylim = c(0, max(res$S, res$E, res$I, res$R))
+  # Plot the states in S(suspectible)
+  # plot the initial day, where 
+  plot(res$t, res$S, type = "p", ylim = c(0, max(res$S)),
        xlab = "Days", ylab = "Number of individuals",
-       col = "blue", lwd = 2, main = title)
-  lines(res$t, res$E, col = "orange", lwd = 2)
-  lines(res$t, res$I, col = "red", lwd = 2)
-  lines(res$t, res$R, col = "darkgreen", lwd = 2)
+       col = "blue", pch = 1, main = title)
+  
+  # Add points for each compartment
+  points(res$t, res$E, col = "orange", pch = 1)
+  points(res$t, res$I, col = "red", pch = 1)
+  points(res$t, res$R, col = "darkgreen", pch = 1)
+  
+  # Add legend
   legend("right", legend = c("S", "E", "I", "R"),
-         col = c("blue", "orange", "red", "darkgreen"), lwd = 2)
+         col = c("blue", "orange", "red", "darkgreen"), pch =c(1,1,1,1))
 }
 
-# 5) Compare 
+
+# 5) Comparing Model
 set.seed(123)
 
-beta <- runif(n, 0, 1) #setting beta vector ~ U(0, 1)
-alink <- get.net(beta, nc = 15, h = h) #list of regular contacts of each person
-ave_check <- mean(sapply(alink, length)) #checking if mean contacts close to nc
+# Setting up beta vector and alink pairs
+# beta = vector of n values (n = 1000) which is uniform (0,1) distributed
+beta <- runif(n); alink <- get.net(beta, nc = 15, h = h)
 
 # Scenario 1: Full model
 res1 <- nseir(beta, h, alink)
@@ -121,15 +143,15 @@ res1 <- nseir(beta, h, alink)
 # Scenario 2: Random mixing only
 res2 <- nseir(beta, h, alink, alpha = c(0, 0, 0.04))
 
-# Scenario 3: Constant beta
+# Scenario 3: Constant beta only
 res3 <- nseir(rep(mean(beta), n), h, alink)
 
 # Scenario 4: Constant beta + random mixing
 res4 <- nseir(rep(mean(beta), n), h, alink, alpha = c(0, 0, 0.04))
 
-# Plot all scenarios side by side
-par(mfrow = c(2, 2))
-plot.seir(res1, "Full Model")
-plot.seir(res2, "Random Mixing Only")
-plot.seir(res3, "Constant Beta")
-plot.seir(res4, "Constant Beta + Random Mixing")
+# --- Plot all scenarios side by side
+par(mfrow = c(2,2))
+dyn.plot(res1, "Full Model")
+dyn.plot(res2, "Random Mixing Only")
+dyn.plot(res3, "Constant Beta")
+dyn.plot(res4, "Constant Beta + Random Mixing")
