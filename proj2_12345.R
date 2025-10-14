@@ -23,7 +23,8 @@
   #creating n vector of which the number refers to household
   #-and the occurrences refers to size of corresponding household
   set.seed(3)
-  h <- rep(1:n, times = sample(1:hmax, n, replace=TRUE))[1:n]
+  sizes <- sample(1:hmax, n, replace = TRUE)
+  h <- rep(1:length(sizes), times = sizes)[1:n]
 
 # 2) Contact network
 get.net <- function (beta, nc=15, h) {
@@ -42,8 +43,7 @@ get.net <- function (beta, nc=15, h) {
         #prob that i and j have contact (daily link)
         p_link <- nc * beta[i] * beta[j] / (beta_bar^2 * (n - 1))
         
-        #If daily link of i and j person > random value U(0,1),
-        #then create a link between i and j
+        #If random value U(0,1) < p_link, create a link between i and j
         if (runif(1) < p_link) {
           links[[i]] <- c(links[[i]], j) #Store j into list who connects with i
           links[[j]] <- c(links[[j]], i) #Store i in j's list of contacts 
@@ -96,7 +96,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
     for (i in which(state == "I")) {
       # household infections: infect susceptible in same household
       hh_members <- which(h == h[i] & state == "S")
-      #using or logical to accummulate infections oer the loop
+      #using or logical to accumulate infections over the loop
       newE[hh_members] <- newE[hh_members]|(runif(length(hh_members))< alpha[1])
       
       # network infections: infect regular contacts from alink
