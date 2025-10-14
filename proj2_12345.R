@@ -141,7 +141,7 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
 
   # Plot the states in S(susceptible)
   # Create the base plot
-  plot(res$t, res$S, type = "p", ##plot day vs number of suspectible 
+  plot(res$t, res$S, type = "p", ##plot day vs number of susceptible 
        ylim = c(0, max(res$S)), xlim = c(0, max(res$t)), ## set maximum range
        xlab = "Days", ylab = "Number of individuals", ##labelling the plot
        col = "blue", pch = 1, main = title) ##color and type of points in plot
@@ -154,7 +154,7 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
   # Add legend
   legend(
     "right",        
-    legend = c("Suspectible", "Exposed", "Infectious", "Recovered"),
+    legend = c("Susceptible", "Exposed", "Infectious", "Recovered"),
     col = c("blue", "orange", "red", "darkgreen"),
     pch = 1, bty = "n", ##type of points and no box legend 
     cex = 0.8,       ## smaller text
