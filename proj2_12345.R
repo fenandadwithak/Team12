@@ -191,4 +191,4 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
   dyn.plot(res1, "Full Model Default Parameter")
   dyn.plot(res2, "Random Mixing Only")
   dyn.plot(res3, "Constant Beta")
-  dyn.plot(res4, "Constant Beta + Random Mixing")
+  dyn.plot(res4, "Constant Beta and Random Mixing")
