@@ -96,6 +96,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
     for (i in which(state == "I")) {
       # household infections: infect susceptible in same household
       hh_members <- which(h == h[i] & state == "S")
+      #using or logical to accummulate infections oer the loop
       newE[hh_members] <- newE[hh_members]|(runif(length(hh_members))< alpha[1])
       
       # network infections: infect regular contacts from alink
