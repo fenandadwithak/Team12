@@ -88,9 +88,9 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
   
   for (t in 1:nt) { #simulate over nt days
     newE <- rep(FALSE, n) #to record who becomes exposed
-    u <- runif(n) #using random deviates: runif(n)
-    newI <- (state == "E") & (u < gamma) #E -> I with prob gamma
-    newR <- (state == "I") & (u < delta) #I -> R with prob delta
+    #using random deviates: runif(n)
+    newI <- (state == "E") & (runif(n) < gamma) #E -> I with prob gamma
+    newR <- (state == "I") & (runif(n) < delta) #I -> R with prob delta
     
     #Loop over each infectious person to spread infection
     for (i in which(state == "I")) {
@@ -191,3 +191,4 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
   dyn.plot(res2, "Random Mixing Only")
   dyn.plot(res3, "Constant Beta")
   dyn.plot(res4, "Constant Beta and Random Mixing")
+  
