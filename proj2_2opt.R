@@ -76,4 +76,5 @@ get.net <- function (beta, nc=15, h) {
 alink = get.net(beta,nc=15,h)
 # check the actual nc 
 mean(sapply(alink, length))
+# check the maximum subelement
 max(sapply(alink, length))
