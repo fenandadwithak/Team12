@@ -10,21 +10,13 @@ get.net <- function (beta, nc=15, h) {
   
   # Allocate the possible connection formed in each individual
   
-  # For each individual, we assume an upper bound on the number of contact is 
-  # equal to 3*nc (nc=15).This value is selected because the actual number of
-  # contacts generated probabilistically (via the link probability, p_link)
-  # and may fall short of the target mean number of contact (nc). So, to ensure
-  # that the expected number of contact achieved, we use "oversample" 3x target
-  # (as reccomended 2-4x target)
- 
-  ub_nc <- ceiling(nc * 3)  ## the upper bound number of contact per individual
   output.net <- vector("list", n) ## list to store the result
   output.net0 <- integer(n) ## vector to store number of contact made per idv
   
   # Create list of n elements which in each element has "ub_nc" sub-element
-  # Later, we would to allocate (drop sub-element and store possible contacts)
-  # until overall number of contacts achieved (nc=15)
-  for (k in 1:n) output.net[[k]] <- integer(ub_nc) 
+  # Later, we would to allocate (drop/add sub-element and store possible 
+  # contacts until overall number of contacts achieved (nc=15)
+  for (k in 1:n) output.net[[k]] <- integer(nc) ## set initial value output.net
   
   # Loop over each individual
   for (i in 1:(n-1)) {
@@ -68,7 +60,8 @@ get.net <- function (beta, nc=15, h) {
   # Drop sub-element/rejected candidates and replace person with no contact 
   for (k in 1:n) {
     if (output.net0[k] > 0) { 
-      # if person has "chosen candidates" to link, filter "assigned" sub-element 
+      # if person has "chosen candidates" to link and 
+      # number of chosen candidates < nc, filter "assigned" sub-element 
       # in "output.net"
       output.net[[k]] <- output.net[[k]][1:output.net0[k]]
     } else {
@@ -83,3 +76,4 @@ get.net <- function (beta, nc=15, h) {
 alink = get.net(beta,nc=15,h)
 # check the actual nc 
 mean(sapply(alink, length))
+max(sapply(alink, length))
