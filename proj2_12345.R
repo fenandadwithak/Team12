@@ -12,7 +12,7 @@
 # Nurmawiya : create nseir function, cross-check code, cross-check the entire 
 #             code and revise comments
 
-# SEIR (Suspectible, Exposed, Infections, Recovered) Model Simulation
+# SEIR (Susceptible, Exposed, Infections, Recovered) Model Simulation
 # Goals : create a model and how its use to investigate the role of household
 #         and network structure on epidemic dynamics.
 
@@ -138,8 +138,7 @@ dyn.plot <- function(res, title = "SEIR Dynamics") {
   
   # input : nseir model from function nseir 
   # output : Dynamic Plot days vs number of individuals per states
-  
-  # ylim = c(0, max(res$S, res$E, res$I, res$R))
+
   # Plot the states in S(susceptible)
   # Create the base plot
   plot(res$t, res$S, type = "p", ##plot day vs number of suspectible 
