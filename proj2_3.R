@@ -18,4 +18,7 @@ sum(house_sizes) #to make sure my sample >= n
 h <- rep(seq_along(house_sizes), times = house_sizes)[1:n]
 
 # Shuffle the household assignments randomly
-h <- sample(h, n, replace = FALSE)
+#h <- sample(h, n, replace = FALSE)
+#علق عليها انه الريبوستري مدري وش قال
+
+#

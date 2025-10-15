@@ -32,27 +32,7 @@ get.net <- function (beta, nc=15, h) {
   # beta: sociability parameter, higher means more likely to form links
   
   # output: list of connected networks from each person
-  n <- length(beta)
-  beta_bar <- mean(beta) #mean sociability parameter
-  links <- vector("list", n) #set null vector for links of each person
-  
-  for (i in 1:(n-1)) { #loop over person i from 1 to n-1
-    for (j in (i+1):n) { #loop over person j from i+1 to n to avoid duplicates
-      if (h[i] != h[j]) { #only connect if they are not in the same household
-        #prob that i and j have contact (daily link)
-        p_link <- nc * beta[i] * beta[j] / (beta_bar^2 * (n - 1))
-        
-        #If daily link of i and j person > random value U(0,1),
-        #then create a link between i and j
-        if (runif(1) < p_link) {
-          links[[i]] <- c(links[[i]], j) #Store j into list who connects with i
-          links[[j]] <- c(links[[j]], i) #Store i in j's list of contacts 
-        }
-      }
-    }
-  }
-  return(links) #return the list of daily contacts for each person
-} ## get.net
+ ## get.net
 
 # 3) nseir function
 nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
