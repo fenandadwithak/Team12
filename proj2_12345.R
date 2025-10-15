@@ -40,7 +40,7 @@ get.net <- function (beta, nc=15, h) {
   # Allocate the possible connection formed in each individual
     
   output.net <- vector("list", n) ## list to store the result
-  output.net0 <- integer(n) ## vector to store number of contact made per idv
+  output.net0 <- integer(n) ## vector to store number of contact made per person
     
   # Create list of n elements which in each element has "ub_nc" sub-element
   # Later, we would to allocate (drop/add sub-element and store possible 
