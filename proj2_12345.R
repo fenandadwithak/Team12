@@ -43,15 +43,14 @@ get.net <- function (beta, nc=15, h) {
   output.net0 <- integer(n) ## vector to store number of contact made per person
     
   # Make list of n elements which in each element has total number nc subelement
-  # Later, we would to allocate (drop/add sub-element and store possible contact
+  # Later, we would allocate (drop/add sub-element and store possible contact
   # contacts until overall number of contacts achieved (nc=15)
   for (k in 1:n) output.net[[k]] <- integer(nc) ## set initial value output.net
     
   # Loop over each individual
   for (i in 1:(n-1)) {
     j <- (i+1):n # candidates contacts were generated
-    flag <- h[i] != h[j]  # "FALSE" if i & j are belong to same household
-      # means that pairing wouldn't be generated
+    flag <- h[i] != h[j]  # flag to filter same household 
     j <- j[flag] # filter candidates contacts from different household
       
     if (length(j) == 0) next # skip iteration when there are no candidate
@@ -60,16 +59,14 @@ get.net <- function (beta, nc=15, h) {
     p_link <- nc * beta[i] * beta[j] / (beta_bar^2 * (n - 1))
       
     # Select the candidates contacts based on p-link
-    # linked is a vector containing possible candidate contacts
-    linked <- j[runif(length(j)) < p_link]
+    linked <- j[runif(length(j)) < p_link] #vector possible candidate contacts
       
     # If there is chosen candidate(s), store it into output.net and output.net0
     if (length(linked) > 0) {
       # Position to fill
       pos = (output.net0[i]+1):(output.net0[i]+length(linked))
         
-      # Assign link[[i]] with number of candidates stored in "linked" at the
-      # defined position
+      # Assign link[[i]]to candidates from "linked" at given position
       output.net[[i]][pos] <- linked
         
       # Assign number of chosen candidates at i index in output.net0
@@ -89,9 +86,7 @@ get.net <- function (beta, nc=15, h) {
   # Drop sub-element/rejected candidates and replace person with no contact 
   for (k in 1:n) {
     if (output.net0[k] > 0) { 
-      # if person has "chosen candidates" to link and 
-      # number of chosen candidates < nc, filter "assigned" sub-element 
-      # in "output.net"
+      # Filter assigned links when chosen number of chosen candidates < nc
       output.net[[k]] <- output.net[[k]][1:output.net0[k]]
     } else {
       # if there is no chosen candidate, replace sub-element into NULL
@@ -125,8 +120,8 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
   #          relations)
   
   n <- length(beta) #population size
-  state <- rep("S", n) #initialize susceptible
-  state[sample(1:n, round(pinf * n))] <- "I" #randomly choose initial in the I
+  state <- rep("S", n) #initialize susceptible 
+  state[sample(1:n, round(pinf * n))] <- "I" #randomly choose initial state "I"
   
   seir <- matrix(0, nrow = nt, ncol = 4) #set up storage for pop in each state
   colnames(seir) <- c("S", "E", "I", "R") #naming the column
