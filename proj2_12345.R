@@ -42,8 +42,8 @@ get.net <- function (beta, nc=15, h) {
   output.net <- vector("list", n) ## list to store the result
   output.net0 <- integer(n) ## vector to store number of contact made per person
     
-  # Create list of n elements which in each element has "ub_nc" sub-element
-  # Later, we would to allocate (drop/add sub-element and store possible 
+  # Make list of n elements which in each element has total number nc subelement
+  # Later, we would to allocate (drop/add sub-element and store possible contact
   # contacts until overall number of contacts achieved (nc=15)
   for (k in 1:n) output.net[[k]] <- integer(nc) ## set initial value output.net
     
