@@ -34,22 +34,22 @@ get.net <- function (beta, nc=15, h) {
   # beta: sociability parameter, higher means more likely to form links
   # OUTPUT : list of connected networks from each person (output.net)
     
-  n <- length(beta) ## calculate total obs of beta, or equal to total population
-  beta_bar <- mean(beta) ## calculate mean(beta)/"sociability parameter"
+  n <- length(beta) ## calculate total obs of beta, equal to total population
+  beta_bar <- mean(beta) ## calculate mean of sociability parameter
     
-  # Allocate the possible connection formed in each individual
+  # Allocate possible connection formed in each individual
     
   output.net <- vector("list", n) ## list to store the result
   output.net0 <- integer(n) ## vector to store number of contact made per person
     
-  # Make list of n elements which in each element has total number nc subelement
+  # Make list of n elements which in each element initially has nc subelement
   # Later, we would allocate (drop/add sub-element and store possible contact
-  # contacts until overall number of contacts achieved (nc=15)
+  # Initialise contact list for each person with nc=15 placeholders
   for (k in 1:n) output.net[[k]] <- integer(nc) ## set initial value output.net
     
   # Loop over each individual
   for (i in 1:(n-1)) {
-    j <- (i+1):n # candidates contacts were generated
+    j <- (i+1):n # generating candidate contacts
     flag <- h[i] != h[j]  # flag to filter same household 
     j <- j[flag] # filter candidates contacts from different household
       
