@@ -146,17 +146,17 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
       # household infections: infect susceptible in same household
       hh <- which(h == h[i]) #find everyone in the same household
       sus_hh <- hh[state[hh] == "S"] #keep only those who are susceptible
-      if (length(sus_hh)) { #will skip if there's no susceptible
+      if (length(sus_hh) > 0) { #store newE if there's susceptible
         #store newE for sus_hh if random value < alpha[1]
         newE[sus_hh] <- newE[sus_hh] | (runif(length(sus_hh)) < alpha[1])
         #using OR logical to accumulate infections, not to reset them
       }
       
       # network infections: infect regular contacts from alink
-      if (length(alink[[i]])) { #will skip if there's no regular contacts
+      if (length(alink[[i]]) > 0) { #store sus_net if there's regular contacts
         #store only the member(s) with regular contacts in S
         sus_net <- alink[[i]][state[alink[[i]]] == "S"]
-        if (length(sus_net)) { #will skip if there's no sus_net
+        if (length(sus_net) > 0) { #store newE if there's sus_net
           #store newE for sus_net if random value < alpha[2]
           newE[sus_net] <- newE[sus_net] | (runif(length(sus_net)) < alpha[2])
         }
@@ -164,7 +164,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
       
       # random mixing: infect random susceptible
       sus <- which(state == "S") #locating susceptible
-      if (length(sus)) { #will skip if there is no sus
+      if (length(sus) > 0) {
         #probability irrespective of household or regular contacts
         p_random <- alpha[3]*nc*beta[i]*beta[sus] / (beta_bar^2*(n-1))
         #store newE for sus if random value < p_random
