@@ -48,14 +48,22 @@ nseir_fast <- function(beta, h, alink, alpha = c(.1, .01, .01),
       }
     }
     
-    ## 3. Random mixing (fully vectorized) ----
-    if (length(inf) > 0 && length(sus) > 0) {
+    ## 3. Random Mixing 
+    if (length(inf) > 0 && length(sus) > 0) { 
+      #probability irrespective of household or regular contacts
       p_infect_sus <- alpha[3] * nc * sum(beta[inf]) * beta[sus] /
         (length(inf) * beta_bar^2 * (n - 1))
+     
+      #p_random <- alpha[3]*nc*beta[i]*beta[sus] / (beta_bar^2*(n-1))
+      
       newE[sus] <- newE[sus] | (runif(length(sus)) < p_infect_sus)
     }
+    beta1 = 0.2162537
+    6.090729e-06
+    beta_bar
+    [1] 0.5018192
     
-    ## 4. State updates ----
+    ## 4. State updates 
     state[newE & state == "S"] <- "E"
     state[newI] <- "I"
     state[newR] <- "R"
