@@ -1,3 +1,4 @@
+start <- Sys.time()
 ## ===============================================================
 ##        Practical 2 — Social Structure in SEIR Models
 ## ===============================================================
@@ -247,3 +248,8 @@ compare_four <- function(n = 3000, hmax = 5, nc = 15, nt = 120,
 ## - Fenanda Dwitha Kurniasari(S2744048):  vectorization checks  +plotting + scenarios + report
 ## - Nurmawiya(S2822251): plotting + scenarios + report
 ## ===============================================================
+compare_four (n=10000, hmax=5, nc=15, nt=100, alpha = c(0.1, 0.01, 0.01),
+              delta = 0.2, gamma = 0.4, pinf = 0.005, seed = 1,
+              net_method = "approx", mix_exact = FALSE)
+end <- Sys.time()
+end-start
