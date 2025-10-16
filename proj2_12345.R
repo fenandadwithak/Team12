@@ -124,12 +124,14 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
   state <- rep("S", n) #initialize susceptible 
   state[sample.int(n, round(pinf * n))] <- "I" #randomly choose initial state I
   
+  #state0 = state[sample.int(n, round(pinf * n))]
+  
   seir <- matrix(0, nrow = nt, ncol = 4) #set up storage for pop in each state
   colnames(seir) <- c("S", "E", "I", "R") #naming the column
   
   beta_bar <- mean(beta) #mean sociability parameter
   
-  for (t in 1:nt) { #consider starting from the second day
+  for (t in 2:nt) { #consider starting from the second day
     #simulate over nt days
     newE <- logical(n) #to record who becomes exposed
     #using random deviates: runif(n)
@@ -173,8 +175,11 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
     state[newI] <- "I" #store exposed to infectious if random value < gamma
     state[newR] <- "R" #store infectious to recovered if random value < delta
     
+    
     #record daily counts of each state
     seir[t, ] <- tabulate(factor(state, levels=c("S", "E", "I", "R")), nbins=4)
+    seir[1, "S"] <- n-(round(pinf*n))
+    seir[1, "I"] <- (round(pinf*n))
   }
   
   #returns a list of elements S, E, I, R
