@@ -18,7 +18,7 @@
 
 
 # 1) Create n people assigned to corresponding household where maximum size is 5
-n <- 1000 #population size
+n <- 10000 #population size
 hmax <- 5 #maximum household size
 #creating n vector of which the number refers to household
 #-and the occurrences refers to size of corresponding household
