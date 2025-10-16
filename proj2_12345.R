@@ -129,7 +129,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
   
   beta_bar <- mean(beta) #mean sociability parameter
   
-  for (t in 2:nt) { #consider starting from the second day
+  for (t in 1:nt) { #consider starting from the second day
     #simulate over nt days
     newE <- logical(n) #to record who becomes exposed
     #using random deviates: runif(n)
