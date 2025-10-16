@@ -209,15 +209,15 @@ dyn.plot <- function(seir, title = "SEIR Dynamics") {
   
   # Plot the states in S(susceptible)
   # Create the base plot
-  plot(seir$t, seir$S, type = "p", ##plot day vs number of susceptible 
-       ylim = c(0, max(seir$S)), xlim = c(0, max(seir$t)), ## set maximum range
+  plot(seir$day, seir$S, type = "p", ##plot day vs number of susceptible 
+       ylim = c(0, max(seir$S)), xlim = c(0, max(seir$day)), ## set maximum range
        xlab = "Days", ylab = "Number of individuals", ##labelling the plot
        col = "blue", pch = 1, main = title) ##color and type of points in plot
   
   # Add points for each states
-  points(seir$t, seir$E, col = "orange", pch = 1) ##add states 
-  points(seir$t, seir$I, col = "red", pch = 1)
-  points(seir$t, seir$R, col = "darkgreen", pch = 1)
+  points(seir$day, seir$E, col = "orange", pch = 1) ##add states 
+  points(seir$day, seir$I, col = "red", pch = 1)
+  points(seir$day, seir$R, col = "darkgreen", pch = 1)
   
   # Add legend
   legend(
