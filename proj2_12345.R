@@ -1,15 +1,22 @@
+start <- Sys.time()
 # PROJECT 2 - EXTENDED STATISTICAL PROGRAMMING =================================
+
 # Group 12 
 # Aseel Alghamdi : S2901228
 # Fenanda Dwitha Kurniasari : S2744048
 # Nurmawiya : S2822251
 
-# Aseel : nseir function, cross-check code, cross-check the entire 
-#         code and revise code & comments
-# Fenanda : plot function, model comparison, cross-check the entire code
+# Aseel : create n people and its household, contact network, cross-check 
+#         the entire code and revise code & comments
+# Fenanda : create plot function, compare the model, cross-check the entire code
 #           and revise code & comments
-# Nurmawiya : n people and household, contact network, cross-check the entire
+# Nurmawiya : create nseir function, cross-check code, cross-check the entire 
 #             code and revise code & comments
+
+# SEIR (Susceptible, Exposed, Infections, Recovered) Model Simulation
+# Goals : create a model and how its use to investigate the role of household
+#         and network structure on epidemic dynamics.
+
 
 # 1) Create n people assigned to corresponding household where maximum size is 5
 n <- 10000 #population size
@@ -18,7 +25,7 @@ hmax <- 5 #maximum household size
 #-and the occurrences refers to size of corresponding household
 set.seed(1)
 sizes <- sample(1:hmax, n, replace = TRUE)
-h <- sample(rep(1:length(sizes), times = sizes)[1:n]) #shuffle people accross hh
+h <- sample(rep(1:length(sizes), times = sizes)[1:n])
 
 # 2) Contact network
 get.net <- function (beta, nc=15, h) {
@@ -91,105 +98,88 @@ get.net <- function (beta, nc=15, h) {
 } ## get.net
 
 # 3) nseir function
-nseir <- function(beta, h, alink,
-                  alpha = c(0.1, 0.01, 0.01),
-                  delta = 0.2, gamma = 0.4,
-                  nc = 15, nt = 100, pinf = 0.005,
-                  seed = NULL,
-                  exact_random_mix = FALSE) {
-  
+nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
+                  delta=.2, gamma=.4, nc=15, nt=100, pinf=.005){
   # SEIR stochastic simulation model
   # beta: sociability parameter of each person
   # h: household list
   # alink: list of regular contacts of each person returned by get.net
-  # alpha[1]: daily prob i infecting j if in same household (a_h)
-  # alpha[2]: daily prob i infecting j if in regular contact (a_c)
-  # alpha[3]: daily prob i infecting j through random mixing (a_r)
+  # alpha[1]: daily prob i infecting j if in same household (alpha h)
+  # alpha[2]: daily prob i infecting j if in regular contact (alpha c)
+  # alpha[3]: daily prob i infecting j through random mixing (alpha r)
   # delta: daily prob I -> R
   # gamma: daily prob E -> I
   # nc: average number of daily contacts for each person
   # nt: number of days to simulate
   # pinf: proportion of the initial population to randomly start in the I state
   
-  if (!is.null(seed)) set.seed(seed)
-  n <- length(beta)
-  stopifnot(length(h) == n, length(alink) == n, length(alpha) == 3)
+  # output : nt x 5 matrix contains the number of people across states (S,E,I,R) 
+  #          in each days (from 1st day to nt(100th) day). It depicts the 
+  #          dynamic change in the number of people in each states based on 
+  #          their daily network (from same household and daily contact) and 
+  #          random mixing (Irrespective of household or regular network 
+  #          relations)
   
-  a_h <- alpha[1]; a_c <- alpha[2]; a_r <- alpha[3]
-  beta_bar <- mean(beta)
+  n <- length(beta) #population size
+  state <- rep("S", n) #initialize susceptible 
+  state[sample.int(n, round(pinf * n))] <- "I" #randomly choose initial state I
   
-  ## Initial states
-  S <- rep(1L, n)
-  I0 <- sample.int(n, size = max(1L, floor(n * pinf)))
-  S[I0] <- 3L  # Infectious at t=1
+  seir <- matrix(0, nrow = nt, ncol = 4) #set up storage for pop in each state
+  colnames(seir) <- c("S", "E", "I", "R") #naming the column
   
-  out <- matrix(NA_integer_, nrow = nt, ncol = 4)
-  colnames(out) <- c("S","E","I","R")
+  beta_bar <- mean(beta) #mean sociability parameter
   
-  for (t in seq_len(nt)) {
-    isS <- (S == 1L); isE <- (S == 2L); isI <- (S == 3L)
+  for (t in 1:nt) { #consider starting form the second day
+    #simulate over nt days
+    newE <- logical(n) #to record who becomes exposed
+    #using random deviates: runif(n)
+    newI <- (state == "E") & (runif(n) < gamma) #E -> I with prob gamma
+    newR <- (state == "I") & (runif(n) < delta) #I -> R with prob delta
+    inf <- which(state == "I") #locating infectious
     
-    idxS <- which(isS)
-    p_hh  <- rep(0, length(idxS))
-    p_net <- rep(0, length(idxS))
-    p_mix <- rep(0, length(idxS))
-    
-    ## (A) Household infections: 1 - (1 - a_h)^(# infectious in household)
-    if (a_h > 0) {
-      I_counts <- tapply(isI, h, sum)                   # infectious per household
-      hh_counts <- I_counts[as.character(h[idxS])]
-      hh_counts[is.na(hh_counts)] <- 0
-      p_hh <- 1 - (1 - a_h)^(hh_counts)
-    }
-    
-    ## (B) Regular-network infections: 1 - (1 - a_c)^(# infectious neighbors)
-    if (a_c > 0) {
-      isI_num <- as.integer(isI)
-      kinf <- vapply(alink[idxS], function(v) if (length(v)) sum(isI_num[v]) else 0L, integer(1L))
-      p_net <- 1 - (1 - a_c)^(kinf)
-    }
-    
-    ## (C) Random mixing:
-    ## Exact definition: per pair (i in I, j in S), P(i infects j) =
-    ##   a_r * nc * beta_i * beta_j / (beta_bar^2 * (n-1)).
-    ## Combine across all infectives i to get j's overall probability.
-    if (a_r > 0) {
-      c0 <- a_r * nc / (beta_bar^2 * (n - 1))
-      if (!exact_random_mix) {
-        ## Fast hazard approximation: p = 1 - exp(- c0 * beta_j * sum(beta_i over I))
-        sum_beta_I <- sum(beta[isI])
-        lam <- c0 * beta[idxS] * sum_beta_I
-        p_mix <- 1 - exp(-lam)
-      } else {
-        ## Exact product over infectious set: p = 1 - Π_i (1 - c0 * beta_j * beta_i)
-        bi <- beta[isI]
-        for (k in seq_along(idxS)) {
-          bj <- beta[idxS[k]]
-          p_mix[k] <- 1 - exp(sum(log1p(-c0 * bj * bi)))
+    #Loop over each infectious person to spread infection
+    for (i in inf) {
+      # household infections: infect susceptible in same household
+      hh <- which(h == h[i]) #find everyone in the same household
+      sus_hh <- hh[state[hh] == "S"] #keep only those who are susceptible
+      if (length(sus_hh) > 0) { #store newE if there's susceptible
+        #store newE for sus_hh if random value < alpha[1]
+        newE[sus_hh] <- newE[sus_hh] | (runif(length(sus_hh)) < alpha[1])
+        #using OR logical to accumulate infections, not to reset them
+      }
+      
+      # network infections: infect regular contacts from alink
+      if (length(alink[[i]]) > 0) { #store sus_net if there's regular contacts
+        #store only the member(s) with regular contacts in S
+        sus_net <- alink[[i]][state[alink[[i]]] == "S"]
+        if (length(sus_net) > 0) { #store newE if there's sus_net
+          #store newE for sus_net if random value < alpha[2]
+          newE[sus_net] <- newE[sus_net] | (runif(length(sus_net)) < alpha[2])
         }
+      }
+      
+      # random mixing: infect random susceptible
+      sus <- which(state == "S") #locating susceptible
+      if (length(sus) > 0) {
+        #probability irrespective of household or regular contacts
+        p_random <- alpha[3]*nc*beta[i]*beta[sus] / (beta_bar^2*(n-1))
+        #store newE for sus if random value < p_random
+        newE[sus] <- newE[sus] | (runif(length(sus)) < p_random)
       }
     }
     
-    ## Combine independent channels
-    p_inf <- 1 - (1 - p_hh) * (1 - p_net) * (1 - p_mix)
-    p_inf[p_inf < 0] <- 0; p_inf[p_inf > 1] <- 1
+    #update states based on new infections
+    state[newE & state == "S"] <- "E" #store susceptible who get exposed
+    state[newI] <- "I" #store exposed to infectious if random value < gamma
+    state[newR] <- "R" #store infectious to recovered if random value < delta
     
-    ## Transitions (synchronous updates)
-    newE_idx <- idxS[ runif(length(idxS)) < p_inf ]
-    idxE <- which(isE)
-    newI_idx <- idxE[ runif(length(idxE)) < gamma ]
-    idxI <- which(isI)
-    newR_idx <- idxI[ runif(length(idxI)) < delta ]
-    
-    if (length(newE_idx)) S[newE_idx] <- 2L
-    if (length(newI_idx)) S[newI_idx] <- 3L
-    if (length(newR_idx)) S[newR_idx] <- 4L
-    
-    out[t,] <- c(sum(S==1L), sum(S==2L), sum(S==3L), sum(S==4L))
+    #record daily counts of each state
+    seir[t, ] <- tabulate(factor(state, levels=c("S", "E", "I", "R")), nbins=4)
   }
   
-  data.frame(day = 1:nt, out, row.names = NULL)
-} ##nseir
+  #returns a list of elements S, E, I, R
+  return(data.frame(t = 1:nt, seir))
+} ## nseir
 
 # 4) Function Plot
 dyn.plot <- function(seir, title = "SEIR Dynamics") {
@@ -209,15 +199,15 @@ dyn.plot <- function(seir, title = "SEIR Dynamics") {
   
   # Plot the states in S(susceptible)
   # Create the base plot
-  plot(seir$day, seir$S, type = "p", ##plot day vs number of susceptible 
-       ylim = c(0, max(seir$S)), xlim = c(0, max(seir$day)), ## set maximum range
+  plot(seir$t, seir$S, type = "p", ##plot day vs number of susceptible 
+       ylim = c(0, max(seir$S)), xlim = c(0, max(seir$t)), ## set maximum range
        xlab = "Days", ylab = "Number of individuals", ##labelling the plot
        col = "blue", pch = 1, main = title) ##color and type of points in plot
   
   # Add points for each states
-  points(seir$day, seir$E, col = "orange", pch = 1) ##add states 
-  points(seir$day, seir$I, col = "red", pch = 1)
-  points(seir$day, seir$R, col = "darkgreen", pch = 1)
+  points(seir$t, seir$E, col = "orange", pch = 1) ##add states 
+  points(seir$t, seir$I, col = "red", pch = 1)
+  points(seir$t, seir$R, col = "darkgreen", pch = 1)
   
   # Add legend
   legend(
@@ -259,3 +249,6 @@ dyn.plot(seir1, "Full Model Default Parameter")
 dyn.plot(seir2, "Random Mixing Only")
 dyn.plot(seir3, "Constant Beta")
 dyn.plot(seir4, "Constant Beta and Random Mixing")
+
+end <- Sys.time()
+end-start
