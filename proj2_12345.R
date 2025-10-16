@@ -91,8 +91,13 @@ get.net <- function (beta, nc=15, h) {
 } ## get.net
 
 # 3) nseir function
-nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
-                  delta=.2, gamma=.4, nc=15, nt=100, pinf=.005, seed = NULL) {
+nseir <- function(beta, h, alink,
+                  alpha = c(0.1, 0.01, 0.01),
+                  delta = 0.2, gamma = 0.4,
+                  nc = 15, nt = 100, pinf = 0.005,
+                  seed = NULL,
+                  exact_random_mix = FALSE) {
+  
   # SEIR stochastic simulation model
   # beta: sociability parameter of each person
   # h: household list
@@ -131,7 +136,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
     
     ## (A) Household infections: 1 - (1 - a_h)^(# infectious in household)
     if (a_h > 0) {
-      I_counts <- tapply(isI, h, sum) # infectious per household
+      I_counts <- tapply(isI, h, sum)                   # infectious per household
       hh_counts <- I_counts[as.character(h[idxS])]
       hh_counts[is.na(hh_counts)] <- 0
       p_hh <- 1 - (1 - a_h)^(hh_counts)
@@ -184,7 +189,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
   }
   
   data.frame(day = 1:nt, out, row.names = NULL)
-} #nseir
+} ##nseir
 
 # 4) Function Plot
 dyn.plot <- function(seir, title = "SEIR Dynamics") {
