@@ -6,17 +6,30 @@ start <- Sys.time()
 # Fenanda Dwitha Kurniasari : S2744048
 # Nurmawiya : S2822251
 
-# Aseel : create n people and its household, contact network, cross-check 
-#         the entire code and revise code & comments
-# Fenanda : create plot function, compare the model, cross-check the entire code
-#           and revise code & comments
+# Aseel     : create n people and its household, contact network, cross-check 
+#             the entire code and revise code & comments
+# Fenanda   : create plot function, compare the model, cross-check the entire 
+#             code and revise code & comments
 # Nurmawiya : create nseir function, cross-check code, cross-check the entire 
 #             code and revise code & comments
+
+# ==============================================================================
+##        Practical 2 — Social Structure in SEIR Models
+## =============================================================================
+## What you get:
+## (1) generate household : build individual and household ID vector h
+## (2) get_net()          : build regular-contact network alink
+## (3) nseir()            : SEIR simulator with household/network/random mixing
+## (4) dyn_plot()         : tidy plotting for S/E/I/R counts
+## (5) comapring 4 model  : runs the four required scenarios + 2x2 plot
+
+## =============================================================================
 
 # SEIR (Susceptible, Exposed, Infections, Recovered) Model Simulation
 # Goals : create a model and how its use to investigate the role of household
 #         and network structure on epidemic dynamics.
 
+##==============================================================================
 
 # 1) Create n people assigned to corresponding household where maximum size is 5
 n <- 10000 #population size
@@ -133,7 +146,7 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
   
   for (t in 2:nt) { #consider starting from the second day
     #simulate over nt days
-    newE <- logical(n) #to record who becomes exposed
+    newE <- logical(n) #to record logical value who becomes exposed
     #using random deviates: runif(n)
     newI <- (state == "E") & (runif(n) < gamma) #E -> I with prob gamma
     newR <- (state == "I") & (runif(n) < delta) #I -> R with prob delta
@@ -178,8 +191,8 @@ nseir <- function(beta, h, alink, alpha=c(.1, .01, .01),
     
     #record daily counts of each state
     seir[t, ] <- tabulate(factor(state, levels=c("S", "E", "I", "R")), nbins=4)
-    seir[1, "S"] <- n-(round(pinf*n))
-    seir[1, "I"] <- (round(pinf*n))
+    seir[1, "S"] <- n-(round(pinf*n)) #assign day-1 for S-state
+    seir[1, "I"] <- (round(pinf*n)) #assign day-1 for I-state
   }
   
   #returns a list of elements S, E, I, R
@@ -257,3 +270,15 @@ dyn.plot(seir4, "Constant Beta and Random Mixing")
 
 end <- Sys.time()
 end-start
+
+
+##========== Comment Section about comparing model =============================
+# In the random mixing model, infection spreads rapidly than other model, and
+# number of recovered individuals is about the same with Full Model. Constant 
+# beta with random mixing model produces the highest final number of recovered
+# individuals than other models. Meanwhile, in the constant beta model, due to 
+# constant transmission rate (beta), the model makes the infection spread less 
+# dynamic. To sum up, the types of model mainly affect timing, sharpness of 
+# peaks, and the smoothness (or flatness), at each state and day
+
+
