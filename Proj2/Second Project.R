@@ -13,15 +13,18 @@ start <- Sys.time()
 # Nurmawiya : create nseir function, cross-check code, cross-check the entire 
 #             code and revise code & comments
 
+# Repository Link
+# https://github.com/fenandadwithak/Team12.git (Folder Project 2)
+
 # ==============================================================================
-##        Practical 2 — Social Structure in SEIR Models
+##                              Outline Syntax
 ## =============================================================================
 ## What you get:
 ## (1) generate household : build individual and household ID vector h
 ## (2) get_net()          : build regular-contact network alink
 ## (3) nseir()            : SEIR simulator with household/network/random mixing
 ## (4) dyn_plot()         : tidy plotting for S/E/I/R counts
-## (5) comapring 4 model  : runs the four required scenarios + 2x2 plot
+## (5) comparing 4 model  : runs the four required scenarios + 2x2 plot
 
 ## =============================================================================
 
@@ -279,6 +282,6 @@ end-start
 # individuals than other models. Meanwhile, in the constant beta model, due to 
 # constant transmission rate (beta), the model makes the infection spread less 
 # dynamic. To sum up, the types of model mainly affect timing, sharpness of 
-# peaks, and the smoothness (or flatness), at each state and day
+# peaks, and the smoothness (or flatness), at each state and
 
 
