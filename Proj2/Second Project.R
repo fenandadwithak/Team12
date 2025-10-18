@@ -14,7 +14,7 @@ start <- Sys.time()
 #             code and revise code & comments
 
 # Repository Link
-# https://github.com/fenandadwithak/Team12.git (Folder Project 2)
+# https://github.com/fenandadwithak/Team12/tree/main/Proj2
 
 # ==============================================================================
 ##                              Outline Syntax
