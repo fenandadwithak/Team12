@@ -35,7 +35,14 @@ start <- Sys.time()
 
 ##==============================================================================
 
-# 1) 
+# Open data
+df = read.table('engcov.txt')
+
+
+
+
+
+
 
 end <- Sys.time()
 end-start
