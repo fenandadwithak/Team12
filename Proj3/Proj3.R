@@ -33,12 +33,40 @@ start <- Sys.time()
 # 
 #         
 
-##==============================================================================
-library(spline)
+##==============================================================================jb
+library(splines)
+library(stats)
 # Open data
 df = read.table('engcov.txt')
 
+##============================Function Matrix===================================
+spline_matrix = function (d, K=8) {
+  # Function to make spline
+  # 1. Define internal and full knot sequences
+  # Internal knots (K - 2)
+  internal_knots <- seq(min(d), max(d), length.out = K-2)
+  
+  # Full knot sequence with 2 extra boundary knots at each end (K + 4 total)
+  full_knots <- c(rep(min(d), 4), internal_knots, rep(max(d), 4))
+  
+  # 2. Construct B-spline basis matrix (X_tilde)
+  X_tilde <- splineDesign(knots = full_knots, x = d, outer.ok = TRUE)
+  
+  # 3. Create X = X_tilde (if no penalty transformation)
+  X <- X_tilde
+  
+  # 4. Construct S, the penalty matrix
+  #    S penalizes the roughness of the spline (e.g., 2nd derivative)
+  #    Here we use finite differences to approximate the roughness penalty
+  S <- crossprod(diff(diag(K),diff=2))
+  
+  # 5. Return everything as a list
+  list(X_tilde = X_tilde, X = X, S = S, knots = full_knots)
+}
 
+# Testing
+spline_matrix(t)
+  
 
 
 
@@ -599,6 +627,15 @@ df = read.table('engcov.txt')
 
 
 # Fenanda ----
+
+# ==============================================================================
+##                          NON-PARAMETRIC BOOTSTRAPING
+## =============================================================================
+
+# Initialize number of replicate sample
+n_bootstrap = 200
+# Initialize matrix to store 
+
 
 
 end <- Sys.time()
