@@ -37,7 +37,7 @@ start <- Sys.time()
 library(splines)
 library(stats)
 # Open data
-df = read.table('engcov.txt')
+#df = read.table('engcov.txt')
 
 ##============================Function Matrix===================================
 spline_matrix = function (d, K=80) {
@@ -66,7 +66,32 @@ spline_matrix = function (d, K=80) {
 
 # Testing
 spline_matrix(t)
-  
+
+#########################STEP 1 & 2#################################
+#Load data and basic setup
+##########################################################
+
+eng <- read.table("engcov.txt", header = TRUE)  # expects a column named "deaths"
+y <- eng$deaths                                # response variable (counts per time unit)
+Tn <- length(y)                                # number of time points (e.g., days)
+
+# y: numeric vector of length Tn
+# Tn: integer, number of observations
+
+##########################################################
+#Set up distributed-lag kernel (log-normal shape)
+##########################################################
+
+# The kernel defines how much influence past values have on today's predictor
+d <- 1:80                   # allow up to 80 days of lag
+edur <- 3.151               # log-normal mean (on log scale)
+sdur <- 0.469               # log-normal standard deviation (on log scale)
+pd <- dlnorm(d, meanlog = edur, sdlog = sdur)  # weight for each lag day
+pd <- pd / sum(pd)          # normalize so weights sum to 1
+
+# d: integer vector from 1 to 80
+# pd: numeric vector of length 80, positive and sums to 1
+
 
 
 
