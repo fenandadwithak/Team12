@@ -40,7 +40,7 @@ library(stats)
 df = read.table('engcov.txt')
 
 ##============================Function Matrix===================================
-spline_matrix = function (d, K=8) {
+spline_matrix = function (d, K=80) {
   # Function to make spline
   # 1. Define internal and full knot sequences
   # Internal knots (K - 2)
