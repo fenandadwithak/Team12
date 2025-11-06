@@ -138,14 +138,90 @@ for (dlag in seq_along(pd)) {
 # If gamma are coefficients, the linear predictor is eta = X %*% gamma
 cat("dim(X):", paste(dim(X), collapse = " x "), "\n")
 
+##########################################################
+#Smoothness penalty matrix S0 (second-difference penalty)
+##########################################################
 
+# Penalizes roughness in gamma; encourages smooth spline coefficients
+D <- matrix(0, nrow = K - 2, ncol = K)        # (K-2) x K operator
+for (i in 1:(K - 2)) D[i, i:(i + 2)] <- c(1, -2, 1)
+S0 <- t(D) %*% D                               # penalty matrix (K x K), PSD
 
+##########################################################
+#Penalized Poisson objective and its gradient
+##########################################################
 
+# Model: y_t ~ Poisson(mu_t), log(mu_t) = eta_t = (X %*% gamma)_t
+# Objective to MINIMIZE = Negative Log-Likelihood + smoothness penalty
+#   NLL = sum(exp(eta) - y*eta)   (dropping constants)
+#   Penalty = 0.5 * lambda * gamma' S0 gamma
 
+pen_nll <- function(gamma, X, y, S0, lambda = 1e-1) {
+  # gamma: K-vector of spline coefficients we are optimizing
+  eta <- as.vector(X %*% gamma)                 # linear predictor (Tn-vector)
+  mu  <- exp(eta)                               # Poisson mean (positive)
+  nll <- sum(mu - y * eta)                      # Poisson negative log-likelihood
+  # IMPORTANT: matrix multiply (%*%), NOT modulus (%%)
+  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S0 %*% gamma))  # smoothness cost
+  nll + pen
+}
+pen_grad <- function(gamma, X, y, S0, lambda = 1e-1) {
+  # Analytic gradient: faster and more accurate than numerical
+  eta <- as.vector(X %*% gamma)
+  mu  <- exp(eta)
+  score <- t(X) %*% (mu - y)                    # gradient of NLL part
+  as.vector(score + lambda * (S0 %*% gamma))    # add gradient of penalty
+}
 
+# Numerical gradient checker (slow but simple):
+# verifies pen_grad matches finite differences -> catches bugs.
 
+fd_grad <- function(fun, gamma, eps = 1e-6, ...) {
+  g <- numeric(length(gamma))
+  for (j in seq_along(gamma)) {
+    e <- rep(0, length(gamma)); e[j] <- eps
+    g[j] <- (fun(gamma + e, ...) - fun(gamma - e, ...)) / (2 * eps)
+  }
+  g
+}
 
+##########################################################
+#Fit the model using BFGS optimization
+##########################################################
+set.seed(1)                  # reproducibility (not essential for optim, but fine)
+gamma0 <- rep(0, K)          # start from all zeros
+lambda <- 1e-1               # smoothing strength: larger -> smoother fitted curve
 
+# Check that our gradient matches finite differences at the start point
+
+g_anal <- pen_grad(gamma0, X, y, S0, lambda)
+g_fd   <- fd_grad(pen_nll, gamma0, eps = 1e-6, X = X, y = y, S0 = S0, lambda = lambda)
+max_rel_err <- max(abs(g_anal - g_fd) / pmax(1, abs(g_fd)))
+cat("Max relative FD gradient error:", signif(max_rel_err, 4), "\n")
+
+# Expect a very small error (e.g., ~1e-6 to 1e-8). If it's big, something is off.
+# Use BFGS (a standard quasi-Newton optimizer) to minimize the objective
+
+fit <- optim(
+  par     = gamma0,                 # initial gamma
+  fn      = pen_nll,                # objective function
+  gr      = pen_grad,               # analytic gradient
+  method  = "BFGS",                 # efficient for smooth problems
+  control = list(reltol = 1e-10,    # tight tolerance (can relax if needed)
+                 maxit = 1000,      # cap iterations
+                 trace = 0),        # no console trace
+  X = X, y = y, S0 = S0, lambda = lambda
+)
+
+##########################################################
+#Extract fitted quantities
+##########################################################
+
+gamma_hat <- fit$par                      # estimated spline coefficients (K-vector)
+eta_hat   <- as.vector(X %*% gamma_hat)   # fitted linear predictor (log-scale)
+mu_hat    <- exp(eta_hat)                 # fitted mean counts (always > 0)
+
+cat("Converged:", fit$convergence == 0, "\nFinal penalized NLL:", fit$value, "\n")
 
 
 
