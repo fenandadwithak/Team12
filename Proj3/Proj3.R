@@ -27,60 +27,103 @@ start <- Sys.time()
 ## (5)
 ## (6)
 
-##============ EVALUATE MATRIX X, Xtilde, and S ===============================
-library(splines)
-engcov <- read.table("engcov.txt", header = TRUE)
-y <- engcov$nhs; t <- engcov$julian; n <- length(y)
 
-d <- 1:80; edur <- 3.151; sdur <- 0.469
-pd <- dlnorm(d, edur, sdur)
-pd <- pd / sum(pd)
+##=========== Data Preparation & Load library ================================================
+library(splines) #load library splines
 
+df <- read.table("engcov.txt", header = TRUE) # import datasets
+y <- df$nhs; t <- df$julian
+n <- length(y) # define total observation 
+d <- 1:80; edur <- 3.151; sdur <- .469
+pd <- dlnorm(d, edur, sdur) # density (PDF) function of death
+pd <- pd / sum(pd) # probability of death
+
+##============ Construct X, Xtilde, and S ================================
 make_matrices <- function(t, K=80) {
-  knots <- seq(min(t)-30, max(t), length.out=K+4)
-  #define a sequence starting from the first day of death recorded minus 30
-  #(min(t)-30) because for the earliest records, deaths might be caused by the
-  #infection happened around 30 days ago, until maximum day observed (max(t))
+  # Function to construct matrices (Xtilde, X, S) required for predicting 
+  #  number of new infections occuring on day t which expressed by an infection 
+  #  rate function f(t)
+  
+  # Input/Arguments :(1) t, a vector of day since 2020. In this dataset, we use 
+  #                      julian
+  #                  (2) K, number of basis function, set to 80
+  #                      larger K would result smoother model
+  #
+  # Output/Return   :(1) Xtilde, a model matrix (spline basis) to predict f(t) 
+  #                      f(t) = b1(t)β1 + b2(t)β2 + ... + bk(t)βk
+  #                      row : days; colomn : B-spline basis function
+  #                  (2) X, model matrix for the expected death count (the 
+  #                      observed outcome), after convolution with Xtilde and 
+  #                      π(j)/probability func. for days from infection to death 
+  #                  (3) S, penalised matrix. Matrix defining which aspect of β
+  #                      are penalised
+  
+  
+  # Construct X_tilde
+  # Define a sequence starting from the first day of death recorded minus 30
+  # (min(t)-30) because for the earliest records, deaths might be caused by the
+  # infection happened around 30 days ago, until maximum day observed (max(t))
   # for as many as K+4 evenly spaced, so there will be a sequence of 84 numbers
+  knots <- seq(min(t)-30, max(t), length.out=K+4)
   
-  Xtilde <- splineDesign(knots=knots, x=(min(t)-30):max(t), ord=4,
-                         outer.ok= TRUE)
-  #construct matrix X-tilde using splineDesign with 84 knots as defined before
-  #starting from min(t)-30 until max(t) with order of the spline = 4
+  Xtilde <- splineDesign(knots=knots, 
+                         x=(min(t)-30):max(t), 
+                         ord=4,
+                         outer.ok= TRUE)#construct matrix X-tilde using 
+                                        #splineDesign with 84 knots as defined 
+                                        #before starting from min(t)-30 until 
+                                        #max(t) with order of the spline = 4
   
-  X <- matrix(0, nrow=length(t), ncol=ncol(Xtilde)) #the model matrix of deaths
+  # Construct X
+  X <- matrix(0, nrow=length(t), ncol=ncol(Xtilde)) # initialize matrix to store
   #for every value in length(t) = 150
+  # Execute for each observation of time (1:150)
   for (i in 1:length(t)) {
-    j_max <- min(80, 29 + i)
-    for (j in 1:j_max) {
-      if ((30+i-j) >= 1)
-        X[i,] <- X[i,] + Xtilde[30 + i - j,] * pd[j]
+    j_max <- min(80, 29 + i) ## define upper bound for summation
+    for (j in 1:j_max) { ## calculate for each days until death 
+      # fill corresponding cells with corresponding element X_tilde and prob 
+      # death time function
+      X[i,] <- X[i,] + Xtilde[30 + i - j,] * pd[j] 
     }
   }
+  
+  # Construct S (Penalised Matrix)
   S <- crossprod(diff(diag(ncol(X)), diff=2))
-  list(Xtilde=Xtilde, X=X, S=S)
-}
+  
+  list(Xtilde=Xtilde, X=X, S=S) ## return the output into a list 
+}##make_matrices
 
-mats <- make_matrices(t)
-X <- mats$X
-S <- mats$S
-Xtilde <- mats$Xtilde
+mats <- make_matrices(t) #
+X <- mats$X ## X
+S <- mats$S ## S
+Xtilde <- mats$Xtilde ## X tilde
 
-##============ FUNCTION PENALIZED NLL ==========================================
-# Model: y_t ~ Poisson(mu_t), log(mu_t) = eta_t = (X %*% gamma)_t
-# Objective to MINIMIZE = Negative Log-Likelihood + smoothness penalty
-#   NLL = sum(exp(eta) - y*eta)   (dropping constants)
-#   Penalty = 0.5 * lambda * gamma' S0 gamma
+##===================== Function PNLL ==========================================
+# Model has the structure of a Poisson GLM, then we need to compute penalised
+# Objective function PNLL(β)
+# PNLL(β) = NLL(β)+penalty
+#           where NLL = sum(exp(eta) - y*eta)   (dropping constants)
+#                 Penalty = 0.5 * lambda * gamma' S gamma = (λ/2)β'Sβ
 
 pen_nll <- function(gamma, X, y, S0, lambda = 1e-1) {
+  # Function to compute penalised negative log likehood
+  
   # gamma: K-vector of spline coefficients we are optimizing
   eta <- as.vector(X %*% gamma)               # linear predictor (Tn-vector)
   mu  <- exp(eta)                             # Poisson mean (positive)
   nll <- sum(mu - y * eta)                    # Poisson negative log-likelihood
-  # IMPORTANT: matrix multiply (%*%), NOT modulus (%%)
-  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S0 %*% gamma))# smoothness cost
-  nll + pen
+  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S0 %*% gamma))# penalty
+  nll + pen # pnll
+}##pen_nll
+
+pen_ll <- function(gamma, y, X, S, lambda) {
+  beta <- exp(gamma)
+  mu <- as.vector(X %*% beta)
+  ll <- sum(y * log(mu) - mu)
+  penalty <- 0.5 * lambda * t(beta) %*% S %*% beta
+  return(-ll + penalty)
 }
+
 pen_grad <- function(gamma, X, y, S0, lambda = 1e-1) {
   # Analytic gradient: faster and more accurate than numerical
   eta <- as.vector(X %*% gamma)
