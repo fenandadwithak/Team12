@@ -38,7 +38,7 @@ d <- 1:80; edur <- 3.151; sdur <- .469
 pd <- dlnorm(d, edur, sdur) # density (PDF) function of death
 pd <- pd / sum(pd) # probability of death
 
-##============ Construct X, Xtilde, and S ================================
+##============== Construct X, Xtilde, and S ================================
 make_matrices <- function(t, K=80) {
   # Function to construct matrices (Xtilde, X, S) required for predicting 
   #  number of new infections occuring on day t which expressed by an infection 
@@ -57,7 +57,6 @@ make_matrices <- function(t, K=80) {
   #                      π(j)/probability func. for days from infection to death 
   #                  (3) S, penalised matrix. Matrix defining which aspect of β
   #                      are penalised
-  
   
   # Construct X_tilde
   # Define a sequence starting from the first day of death recorded minus 30
@@ -98,38 +97,41 @@ X <- mats$X ## X
 S <- mats$S ## S
 Xtilde <- mats$Xtilde ## X tilde
 
-##===================== Function PNLL ==========================================
+##============= Function Penalised NLL and its Objective Func. =================
 # Model has the structure of a Poisson GLM, then we need to compute penalised
-# Objective function PNLL(β)
-# PNLL(β) = NLL(β)+penalty
-#           where NLL = sum(exp(eta) - y*eta)   (dropping constants)
-#                 Penalty = 0.5 * lambda * gamma' S gamma = (λ/2)β'Sβ
+# function. In this case, we want to define objective function PNLL(β)
+# 
+# Formula:
+# NLL = −ℓ(γ)= ∑[e^(ηi)−yi.ηi] where μi=e^(ηi)=e^(Xi.γ)
+# Penalty (P) = (λ/2)β'Sβ
+#
+# PNLL(β) = NLL(β) + P
+#   where NLL = sum(exp(eta) - y*eta)   (dropping constants)
+#         P =  0.5 * lambda * gamma' S gamma 
 
-pen_nll <- function(gamma, X, y, S0, lambda = 1e-1) {
+pen_nll <- function(gamma, X, y, S, lambda = 1e-1) {
   # Function to compute penalised negative log likehood
+  # Input/Argument : (1) Gamma : K-vector of spline coefficients
+  #                  (2) y :  the deaths on day of the year ti
+  #                  (3) S : penalised matrix
+  #                  (4) lambda : smoothing parameter
   
-  # gamma: K-vector of spline coefficients we are optimizing
-  eta <- as.vector(X %*% gamma)               # linear predictor (Tn-vector)
+  # Output/Return  : single numeric value of pen_nll
+  eta <- as.vector(X %*% gamma)               # linear predictor 
   mu  <- exp(eta)                             # Poisson mean (positive)
   nll <- sum(mu - y * eta)                    # Poisson negative log-likelihood
-  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S0 %*% gamma))# penalty
+  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S %*% gamma))# penalty
   nll + pen # pnll
 }##pen_nll
 
-pen_ll <- function(gamma, y, X, S, lambda) {
-  beta <- exp(gamma)
-  mu <- as.vector(X %*% beta)
-  ll <- sum(y * log(mu) - mu)
-  penalty <- 0.5 * lambda * t(beta) %*% S %*% beta
-  return(-ll + penalty)
-}
 
-pen_grad <- function(gamma, X, y, S0, lambda = 1e-1) {
+# Define Gradient vector of Objective Function/ its derivative vector w.r.t γ
+pen_grad <- function(gamma, X, y, S, lambda = 1e-1) {
   # Analytic gradient: faster and more accurate than numerical
   eta <- as.vector(X %*% gamma)
   mu  <- exp(eta)
   score <- t(X) %*% (mu - y)                    # gradient of NLL part
-  as.vector(score + lambda * (S0 %*% gamma))    # add gradient of penalty
+  as.vector(score + lambda * (S %*% gamma))     # add gradient of penalty
 }
 
 # Numerical gradient checker (slow but simple):
