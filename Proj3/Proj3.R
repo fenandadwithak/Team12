@@ -18,7 +18,7 @@ start <- Sys.time()
 
 # ==============================================================================
 ##                                   Outline
-## =============================================================================
+# =============================================================================
 ## What you get:
 ## (1) 
 ## (2) 
@@ -27,16 +27,9 @@ start <- Sys.time()
 ## (5)
 ## (6)
 
-## =============================================================================
-
-# 
-# 
-#         
-
-##==============================================================================jb
+##============================================================================
 library(splines)
 library(stats)
-library(splines)
 
 ##=========================Data Preparation===================================
 engcov <- read.table("engcov.txt", header = TRUE)
@@ -47,31 +40,25 @@ n  <- length(y)
 ## Interval distribution from infection to death
 d  <- 1:80
 edur <- 3.151; sdur <- 0.469
-pi_j <- dlnorm(d, edur, sdur)
-pi_j <- pi_j / sum(pi_j) 
+pd <- dlnorm(d, edur, sdur)
+pd <- pd / sum(pd) 
 
 ##============ EVALUATE MATRIX X, X_tilde, and S =============================
-evaluate_mat <- function(t_seq, K = 80, ord = 4, poly_deg = 2) {
+evaluate_mat <- function(t_seq, pd, K = 80, ord = 4) {
   # Function to construct matrix X, X_tilde, and S as main component to 
   #    predict f(t)/number of new infections occurring on day t
   
   # Input argument : 1. time/days of the year
   #                  2. number of splines basis
-  #                     f(t) = β1(b1)(t) + β1(b1)(t) + ... + βK(bK)(t)
+  #                     f(t) = β1(b1)(t) + β2(b2)(t) + ... + βK(bK)(t)
   #                     larger K, smoother line
   #                  3. ord, order spline (cubic spline = 4)
-  #                  4. poly_deg, polynomial degree is polynomial for matrix X
-  #                     poly_deg = 2
-  #                     f(t) = β0 + β1(t) + β2(t^2)
+  #                  
   
-  # Output Argument: 1. X = model matrix from polynomial linear model
-  #                  2. X_tilde = model matrix from splines
-  #                  2. S = penalty matrix
+  #  Output Argument:1. X_tilde = model matrix from splines
+  #                  2. X = model matrix from polynomial linear model
+  #                  3. S = penalty matrix, matrix that penalize β (smoother)
   #         
-  
-  # Define t min and t max 
-  t_min <- min(t_seq)
-  t_max <- max(t_seq)
   
   # middle K-2 knots = internal knots, 
   # K+4 evenly spaced knots, at the end, we add each 2 knots before and after internal knots
@@ -80,20 +67,32 @@ evaluate_mat <- function(t_seq, K = 80, ord = 4, poly_deg = 2) {
   
   # 2. Xtilde: Basis splines (model matrix)
   #    model f(t) = Xtilde x matrix(Beta)
-  Xtilde <- splineDesign(knots, t_seq, ord = ord, outer.ok = TRUE)
+  Xtilde <- splineDesign(knots, (min(t_seq)-30):max(t_seq), ord = ord, outer.ok = TRUE)
   colnames(Xtilde) <- paste0("b", seq_len(ncol(Xtilde)))
   
   # 3. X: Model matrix polynomial 
-  #    if we set poly deg 3, the model would be f(t) = Bo + B1(t) + B2(t^2)
-  X <- as.matrix(sapply(0:poly_deg, function(p) t_seq^p))
-  colnames(X) <- paste0("poly", 0:poly_deg)
+  # Build matrix X: For each death day, sum Xtilde (infeksi) windowed and weighted by pd
+  X <- function(t, K=80) {
+    X <- matrix(0, nrow=length(t), ncol=ncol(Xtilde))
+    for (i in 1:length(t)) {
+      idx <- (max(1, 31 - i)):(min(80, 30 + i))
+      for (j in idx) {
+        X[i,] <- X[i,] + Xtilde[30 + i - j,] * pd[j]
+      }
+    }
+    S <- crossprod(diff(diag(ncol(X)), diff=2))
+    list(Xtilde=Xtilde, X=X, S=S)
+  }
+  
   
   # 4. S: Penalty matrix (second difference)
-  dK <- diff(diag(K), differences = 2)
+  dK <- diff(diag(K), diff = 2)
   S <- crossprod(dK)
   
   return(list(Xtilde = Xtilde, X = X, S = S, knots = knots))
 }
+
+evaluate_mat(t,pd)
 
 ##============ FUNCTION PENALIZED NLL =============================
 # Model: y_t ~ Poisson(mu_t), log(mu_t) = eta_t = (X %*% gamma)_t
