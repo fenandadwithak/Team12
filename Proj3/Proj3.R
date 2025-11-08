@@ -109,7 +109,7 @@ Xtilde <- mats$Xtilde ## X tilde
 #   where NLL = sum(exp(eta) - y*eta) (dropping constants)
 #         P =  0.5 * lambda * gamma' S gamma 
 
-pen_nll <- function(gamma, X, y, S, lambda = 1e-1) {
+pen_nll <- function(gamma, X, y, S, lambda) {
   # Function to compute penalised negative log likehood
   # Input/Argument : (1) Gamma : K-vector of spline coefficients
   #                  (2) y :  the deaths on day of the year ti
@@ -126,7 +126,7 @@ pen_nll <- function(gamma, X, y, S, lambda = 1e-1) {
 
 
 # Define Gradient vector of Objective Function/ its derivative vector w.r.t γ
-pen_grad <- function(gamma, X, y, S, lambda = 1e-1) {
+pen_grad <- function(gamma, X, y, S, lambda) {
   # Analytic gradient: faster and more accurate than numerical
   eta <- as.vector(X %*% gamma)
   mu  <- exp(eta)
@@ -135,13 +135,13 @@ pen_grad <- function(gamma, X, y, S, lambda = 1e-1) {
 }
 
 # Checking the derivative (sp notes 74)
-K = 80
+K <- 80
 fd <- gamma0 <- rep(0, K)       # start from all zeros
-lambda <- 1e-1   
-pen_nll0 = pen_nll(gamma0, X, y, S, lambda = 1e-1) 
+lambda <- 5e-5
+pen_nll0 <- pen_nll(gamma0, X, y, S, lambda) 
 eps <- 1e-7
 for (i in 1:length(gamma0)) {
-  gamma1 = gamma0; gamma1[i] <- eps
+  gamma1 <- gamma0; gamma1[i] <- eps
   pen_nll1 <- pen_nll(gamma1,X,y,S,lambda)
   fd[i] <- (pen_nll1 - pen_nll0)/eps
 }
