@@ -36,121 +36,66 @@ start <- Sys.time()
 ##==============================================================================jb
 library(splines)
 library(stats)
-# Open data
-#df = read.table('engcov.txt')
+library(splines)
 
-##============================Function Matrix===================================
-spline_matrix = function (d, K=80) {
-  # Function to make spline
-  # 1. Define internal and full knot sequences
-  # Internal knots (K - 2)
-  internal_knots <- seq(min(d), max(d), length.out = K-2)
+##=========================Data Preparation===================================
+engcov <- read.table("engcov.txt", header = TRUE)
+y  <- engcov$nhs
+t  <- engcov$julian
+n  <- length(y)
+
+## Interval distribution from infection to death
+d  <- 1:80
+edur <- 3.151; sdur <- 0.469
+pi_j <- dlnorm(d, edur, sdur)
+pi_j <- pi_j / sum(pi_j) 
+
+##============ EVALUATE MATRIX X, X_tilde, and S =============================
+evaluate_mat <- function(t_seq, K = 80, ord = 4, poly_deg = 2) {
+  # Function to construct matrix X, X_tilde, and S as main component to 
+  #    predict f(t)/number of new infections occurring on day t
   
-  # Full knot sequence with 2 extra boundary knots at each end (K + 4 total)
-  full_knots <- c(rep(min(d), 4), internal_knots, rep(max(d), 4))
+  # Input argument : 1. time/days of the year
+  #                  2. number of splines basis
+  #                     f(t) = β1(b1)(t) + β1(b1)(t) + ... + βK(bK)(t)
+  #                     larger K, smoother line
+  #                  3. ord, order spline (cubic spline = 4)
+  #                  4. poly_deg, polynomial degree is polynomial for matrix X
+  #                     poly_deg = 2
+  #                     f(t) = β0 + β1(t) + β2(t^2)
   
-  # 2. Construct B-spline basis matrix (X_tilde)
-  X_tilde <- splineDesign(knots = full_knots, x = d, outer.ok = TRUE)
+  # Output Argument: 1. X = model matrix from polynomial linear model
+  #                  2. X_tilde = model matrix from splines
+  #                  2. S = penalty matrix
+  #         
   
-  # 3. Create X = X_tilde (if no penalty transformation)
-  X <- X_tilde
+  # Define t min and t max 
+  t_min <- min(t_seq)
+  t_max <- max(t_seq)
   
-  # 4. Construct S, the penalty matrix
-  #    S penalizes the roughness of the spline (e.g., 2nd derivative)
-  #    Here we use finite differences to approximate the roughness penalty
-  S <- crossprod(diff(diag(K),diff=2))
+  # middle K-2 knots = internal knots, 
+  # K+4 evenly spaced knots, at the end, we add each 2 knots before and after internal knots
+  middle_knots <- seq(t_min, t_max, length.out = K-2)
+  knots <- c(rep(t_min, 2), middle_knots, rep(t_max, 2))
   
-  # 5. Return everything as a list
-  list(X_tilde = X_tilde, X = X, S = S, knots = full_knots)
+  # 2. Xtilde: Basis splines (model matrix)
+  #    model f(t) = Xtilde x matrix(Beta)
+  Xtilde <- splineDesign(knots, t_seq, ord = ord, outer.ok = TRUE)
+  colnames(Xtilde) <- paste0("b", seq_len(ncol(Xtilde)))
+  
+  # 3. X: Model matrix polynomial 
+  #    if we set poly deg 3, the model would be f(t) = Bo + B1(t) + B2(t^2)
+  X <- as.matrix(sapply(0:poly_deg, function(p) t_seq^p))
+  colnames(X) <- paste0("poly", 0:poly_deg)
+  
+  # 4. S: Penalty matrix (second difference)
+  dK <- diff(diag(K), differences = 2)
+  S <- crossprod(dK)
+  
+  return(list(Xtilde = Xtilde, X = X, S = S, knots = knots))
 }
 
-# Testing
-spline_matrix(t)
-
-#########################STEP 1 & 2#################################
-#Load data and basic setup
-##########################################################
-
-eng <- read.table("engcov.txt", header = TRUE)  # expects a column named "deaths"
-y <- eng$deaths                                # response variable (counts per time unit)
-Tn <- length(y)                                # number of time points (e.g., days)
-
-# y: numeric vector of length Tn
-# Tn: integer, number of observations
-
-##########################################################
-#Set up distributed-lag kernel (log-normal shape)
-##########################################################
-
-# The kernel defines how much influence past values have on today's predictor
-d <- 1:80                   # allow up to 80 days of lag
-edur <- 3.151               # log-normal mean (on log scale)
-sdur <- 0.469               # log-normal standard deviation (on log scale)
-pd <- dlnorm(d, meanlog = edur, sdlog = sdur)  # weight for each lag day
-pd <- pd / sum(pd)          # normalize so weights sum to 1
-
-# d: integer vector from 1 to 80
-# pd: numeric vector of length 80, positive and sums to 1
-
-##########################################################
-#Build cubic B-spline basis over time (X_tilde)
-##########################################################
-
-K <- 20     # number of spline basis functions (more = more flexible)
-ord <- 4    # spline order (4 = cubic)
-
-# Choose equally spaced knots across time
-breaks <- seq(1, Tn, length.out = K - ord + 2)
-
-# Build full knot vector:
-#  •	repeat the first and last breaks "ord" times to stabilize behavior at edges
-#  •	include interior breaks once
-all_knots <- c(
-  rep(breaks[1], ord),                       # left boundary replicated 'ord' times
-  breaks[2:(length(breaks) - 1)],            # interior knots
-  rep(breaks[length(breaks)], ord)           # right boundary replicated 'ord' times
-)
-stopifnot(length(all_knots) == K + ord)      # standard B-spline requirement
-t_grid  <- 1:Tn                               # evaluation grid: time = 1..Tn
-X_tilde <- splineDesign(                      # evaluate spline basis at each time
-  all_knots, x = t_grid, ord = ord, outer.ok = TRUE
-)  # dimension: Tn x K  (rows=time, cols=spline basis functions)
-cat("dim(X_tilde):", paste(dim(X_tilde), collapse = " x "), "\n")
-
-##########################################################
-#Convolve spline basis with lag kernel to get final design matrix X
-##########################################################
-X <- matrix(0, nrow = Tn, ncol = K)  # initialize final design (Tn x K)
-
-# For each lag dlag:
-# •	weight w = pd[dlag]
-# •	shift the "source" rows of X_tilde up by dlag days
-# •	add w * shifted X_tilde into the appropriate rows of X
-
-for (dlag in seq_along(pd)) {
-  w <- pd[dlag]                       # scalar weight for this lag
-  t_idx <- dlag:Tn                    # destination rows that have past data available
-  src   <- 1:(Tn - dlag + 1)          # source rows from X_tilde (shifted up by dlag)
-  X[t_idx, ] <- X[t_idx, ] + w * X_tilde[src, ]
-}
-
-# After the loop, X is a lag-augmented spline design matrix (Tn x K)
-# If gamma are coefficients, the linear predictor is eta = X %*% gamma
-cat("dim(X):", paste(dim(X), collapse = " x "), "\n")
-
-##########################################################
-#Smoothness penalty matrix S0 (second-difference penalty)
-##########################################################
-
-# Penalizes roughness in gamma; encourages smooth spline coefficients
-D <- matrix(0, nrow = K - 2, ncol = K)        # (K-2) x K operator
-for (i in 1:(K - 2)) D[i, i:(i + 2)] <- c(1, -2, 1)
-S0 <- t(D) %*% D                               # penalty matrix (K x K), PSD
-
-##########################################################
-#Penalized Poisson objective and its gradient
-##########################################################
-
+##============ FUNCTION PENALIZED NLL =============================
 # Model: y_t ~ Poisson(mu_t), log(mu_t) = eta_t = (X %*% gamma)_t
 # Objective to MINIMIZE = Negative Log-Likelihood + smoothness penalty
 #   NLL = sum(exp(eta) - y*eta)   (dropping constants)
@@ -184,6 +129,7 @@ fd_grad <- function(fun, gamma, eps = 1e-6, ...) {
   }
   g
 }
+
 
 ##########################################################
 #Fit the model using BFGS optimization
