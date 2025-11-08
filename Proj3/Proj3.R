@@ -17,8 +17,8 @@ start <- Sys.time()
 # https://github.com/fenandadwithak/Team12/tree/main/Proj3
 
 # ==============================================================================
-##                                   Outline
-# =============================================================================
+##                                   OUTLINE
+# ==============================================================================
 ## What you get:
 ## (1) 
 ## (2) 
@@ -27,74 +27,46 @@ start <- Sys.time()
 ## (5)
 ## (6)
 
-##============================================================================
+##============ EVALUATE MATRIX X, Xtilde, and S ===============================
 library(splines)
-library(stats)
-
-##=========================Data Preparation===================================
 engcov <- read.table("engcov.txt", header = TRUE)
-y  <- engcov$nhs
-t  <- engcov$julian
-n  <- length(y)
+y <- engcov$nhs; t <- engcov$julian; n <- length(y)
 
-## Interval distribution from infection to death
-d  <- 1:80
-edur <- 3.151; sdur <- 0.469
+d <- 1:80; edur <- 3.151; sdur <- 0.469
 pd <- dlnorm(d, edur, sdur)
-pd <- pd / sum(pd) 
+pd <- pd / sum(pd)
 
-##============ EVALUATE MATRIX X, X_tilde, and S =============================
-evaluate_mat <- function(t_seq, pd, K = 80, ord = 4) {
-  # Function to construct matrix X, X_tilde, and S as main component to 
-  #    predict f(t)/number of new infections occurring on day t
+make_matrices <- function(t, K=80) {
+  knots <- seq(min(t)-30, max(t), length.out=K+4)
+  #define a sequence starting from the first day of death recorded minus 30
+  #(min(t)-30) because for the earliest records, deaths might be caused by the
+  #infection happened around 30 days ago, until maximum day observed (max(t))
+  # for as many as K+4 evenly spaced, so there will be a sequence of 84 numbers
   
-  # Input argument : 1. time/days of the year
-  #                  2. number of splines basis
-  #                     f(t) = β1(b1)(t) + β2(b2)(t) + ... + βK(bK)(t)
-  #                     larger K, smoother line
-  #                  3. ord, order spline (cubic spline = 4)
-  #                  
+  Xtilde <- splineDesign(knots=knots, x=(min(t)-30):max(t), ord=4,
+                         outer.ok= TRUE)
+  #construct matrix X-tilde using splineDesign with 84 knots as defined before
+  #starting from min(t)-30 until max(t) with order of the spline = 4
   
-  #  Output Argument:1. X_tilde = model matrix from splines
-  #                  2. X = model matrix from polynomial linear model
-  #                  3. S = penalty matrix, matrix that penalize β (smoother)
-  #         
-  
-  # middle K-2 knots = internal knots, 
-  # K+4 evenly spaced knots, at the end, we add each 2 knots before and after internal knots
-  middle_knots <- seq(t_min, t_max, length.out = K-2)
-  knots <- c(rep(t_min, 2), middle_knots, rep(t_max, 2))
-  
-  # 2. Xtilde: Basis splines (model matrix)
-  #    model f(t) = Xtilde x matrix(Beta)
-  Xtilde <- splineDesign(knots, (min(t_seq)-30):max(t_seq), ord = ord, outer.ok = TRUE)
-  colnames(Xtilde) <- paste0("b", seq_len(ncol(Xtilde)))
-  
-  # 3. X: Model matrix polynomial 
-  # Build matrix X: For each death day, sum Xtilde (infeksi) windowed and weighted by pd
-  X <- function(t, K=80) {
-    X <- matrix(0, nrow=length(t), ncol=ncol(Xtilde))
-    for (i in 1:length(t)) {
-      idx <- (max(1, 31 - i)):(min(80, 30 + i))
-      for (j in idx) {
+  X <- matrix(0, nrow=length(t), ncol=ncol(Xtilde)) #the model matrix of deaths
+  #for every value in length(t) = 150
+  for (i in 1:length(t)) {
+    j_max <- min(80, 29 + i)
+    for (j in 1:j_max) {
+      if ((30+i-j) >= 1)
         X[i,] <- X[i,] + Xtilde[30 + i - j,] * pd[j]
-      }
     }
-    S <- crossprod(diff(diag(ncol(X)), diff=2))
-    list(Xtilde=Xtilde, X=X, S=S)
   }
-  
-  
-  # 4. S: Penalty matrix (second difference)
-  dK <- diff(diag(K), diff = 2)
-  S <- crossprod(dK)
-  
-  return(list(Xtilde = Xtilde, X = X, S = S, knots = knots))
+  S <- crossprod(diff(diag(ncol(X)), diff=2))
+  list(Xtilde=Xtilde, X=X, S=S)
 }
 
-evaluate_mat(t,pd)
+mats <- make_matrices(t)
+X <- mats$X
+S <- mats$S
+Xtilde <- mats$Xtilde
 
-##============ FUNCTION PENALIZED NLL =============================
+##============ FUNCTION PENALIZED NLL ==========================================
 # Model: y_t ~ Poisson(mu_t), log(mu_t) = eta_t = (X %*% gamma)_t
 # Objective to MINIMIZE = Negative Log-Likelihood + smoothness penalty
 #   NLL = sum(exp(eta) - y*eta)   (dropping constants)
@@ -102,11 +74,11 @@ evaluate_mat(t,pd)
 
 pen_nll <- function(gamma, X, y, S0, lambda = 1e-1) {
   # gamma: K-vector of spline coefficients we are optimizing
-  eta <- as.vector(X %*% gamma)                 # linear predictor (Tn-vector)
-  mu  <- exp(eta)                               # Poisson mean (positive)
-  nll <- sum(mu - y * eta)                      # Poisson negative log-likelihood
+  eta <- as.vector(X %*% gamma)               # linear predictor (Tn-vector)
+  mu  <- exp(eta)                             # Poisson mean (positive)
+  nll <- sum(mu - y * eta)                    # Poisson negative log-likelihood
   # IMPORTANT: matrix multiply (%*%), NOT modulus (%%)
-  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S0 %*% gamma))  # smoothness cost
+  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S0 %*% gamma))# smoothness cost
   nll + pen
 }
 pen_grad <- function(gamma, X, y, S0, lambda = 1e-1) {
@@ -133,18 +105,18 @@ fd_grad <- function(fun, gamma, eps = 1e-6, ...) {
 ##########################################################
 #Fit the model using BFGS optimization
 ##########################################################
-set.seed(1)                  # reproducibility (not essential for optim, but fine)
-gamma0 <- rep(0, K)          # start from all zeros
-lambda <- 1e-1               # smoothing strength: larger -> smoother fitted curve
+set.seed(1)               # reproducibility (not essential for optim, but fine)
+gamma0 <- rep(0, K)       # start from all zeros
+lambda <- 1e-1            # smoothing strength: larger -> smoother fitted curve
 
 # Check that our gradient matches finite differences at the start point
 
 g_anal <- pen_grad(gamma0, X, y, S0, lambda)
-g_fd   <- fd_grad(pen_nll, gamma0, eps = 1e-6, X = X, y = y, S0 = S0, lambda = lambda)
+g_fd  <- fd_grad(pen_nll, gamma0, eps=1e-6, X=X, y=y, S0=S0, lambda=lambda)
 max_rel_err <- max(abs(g_anal - g_fd) / pmax(1, abs(g_fd)))
 cat("Max relative FD gradient error:", signif(max_rel_err, 4), "\n")
 
-# Expect a very small error (e.g., ~1e-6 to 1e-8). If it's big, something is off.
+# Expect a very small error (e.g., ~1e-6 to 1e-8). If it's big, something is off
 # Use BFGS (a standard quasi-Newton optimizer) to minimize the objective
 
 fit <- optim(
@@ -162,11 +134,11 @@ fit <- optim(
 #Extract fitted quantities
 ##########################################################
 
-gamma_hat <- fit$par                      # estimated spline coefficients (K-vector)
-eta_hat   <- as.vector(X %*% gamma_hat)   # fitted linear predictor (log-scale)
-mu_hat    <- exp(eta_hat)                 # fitted mean counts (always > 0)
+gamma_hat <- fit$par               # estimated spline coefficients (K-vector)
+eta_hat   <- as.vector(X %*% gamma_hat) # fitted linear predictor (log-scale)
+mu_hat    <- exp(eta_hat)  # fitted mean counts (always > 0)
 
-cat("Converged:", fit$convergence == 0, "\nFinal penalized NLL:", fit$value, "\n")
+cat("Converged:", fit$convergence==0, "\nFinal penalized NLL:", fit$value, "\n")
 
 
 
