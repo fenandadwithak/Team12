@@ -28,7 +28,7 @@ start <- Sys.time()
 ## (6)
 
 
-##=========== Data Preparation & Load library ================================================
+##=========== Data Preparation & Load library ==================================
 library(splines) #load library splines
 
 df <- read.table("engcov.txt", header = TRUE) # import datasets
@@ -38,7 +38,7 @@ d <- 1:80; edur <- 3.151; sdur <- .469
 pd <- dlnorm(d, edur, sdur) # density (PDF) function of death
 pd <- pd / sum(pd) # probability of death
 
-##============== Construct X, Xtilde, and S ================================
+##==================== (1) Construct X, Xtilde, and S ==========================
 make_matrices <- function(t, K=80) {
   # Function to construct matrices (Xtilde, X, S) required for predicting 
   #  number of new infections occuring on day t which expressed by an infection 
@@ -97,7 +97,7 @@ X <- mats$X ## X
 S <- mats$S ## S
 Xtilde <- mats$Xtilde ## X tilde
 
-##============= Function Penalised NLL and its Objective Func. =================
+##============= (2) Function Penalised NLL and its Objective Func. =============
 # Model has the structure of a Poisson GLM, then we need to compute penalised
 # function. In this case, we want to define objective function PNLL(β)
 # 
@@ -145,48 +145,38 @@ for (i in 1:length(gamma0)) {
   pen_nll1 <- pen_nll(gamma1,X,y,S,lambda)
   fd[i] <- (pen_nll1 - pen_nll0)/eps
 }
-fd; pen_grad(gamma0,X,y,S,lambda) ## already same
-range(fd - pen_grad(gamma0,X,y,S,lambda)) ## apx zero
+fd; pen_grad(gamma0, X, y, S, lambda) ## already same
+range(fd - pen_grad(gamma0, X, y, S, lambda)) ## apx zero
 
-
-##########################################################
-#Fit the model using BFGS optimization
-##########################################################
-set.seed(1)               # reproducibility (not essential for optim, but fine)
+#================ (3) Fit the model using BFGS optimization ====================
 gamma0 <- rep(0, K)       # start from all zeros
-lambda <- 1e-1            # smoothing strength: larger -> smoother fitted curve
+lambda <- 5e-5            # smoothing strength: larger -> smoother fitted curve
 
-# Check that our gradient matches finite differences at the start point
-
-g_anal <- pen_grad(gamma0, X, y, S0, lambda)
-g_fd  <- fd_grad(pen_nll, gamma0, eps=1e-6, X=X, y=y, S0=S0, lambda=lambda)
-max_rel_err <- max(abs(g_anal - g_fd) / pmax(1, abs(g_fd)))
-cat("Max relative FD gradient error:", signif(max_rel_err, 4), "\n")
-
-# Expect a very small error (e.g., ~1e-6 to 1e-8). If it's big, something is off
 # Use BFGS (a standard quasi-Newton optimizer) to minimize the objective
-
 fit <- optim(
   par     = gamma0,                 # initial gamma
   fn      = pen_nll,                # objective function
   gr      = pen_grad,               # analytic gradient
   method  = "BFGS",                 # efficient for smooth problems
-  control = list(reltol = 1e-10,    # tight tolerance (can relax if needed)
-                 maxit = 1000,      # cap iterations
-                 trace = 0),        # no console trace
-  X = X, y = y, S0 = S0, lambda = lambda
+  control = list(maxit = 1000),     # cap iterations
+  X=X, y=y, S=S, lambda=lambda
 )
 
-##########################################################
-#Extract fitted quantities
-##########################################################
+gamma_hat <- fit$par # estimated spline coefficients (K-vector)
+eta_hat  <- as.vector(X %*% gamma_hat) # fitted linear predictor (log-scale)
+mu_hat <- exp(eta_hat)  # fitted mean counts (always > 0)
+f_hat <- Xtilde %*% gamma_hat #
 
-gamma_hat <- fit$par               # estimated spline coefficients (K-vector)
-eta_hat   <- as.vector(X %*% gamma_hat) # fitted linear predictor (log-scale)
-mu_hat    <- exp(eta_hat)  # fitted mean counts (always > 0)
+fit$convergence # 0 means successful
+fit$value #final objective value for reference
 
-cat("Converged:", fit$convergence==0, "\nFinal penalized NLL:", fit$value, "\n")
-
+plot(t, y, pch=16, col="black",
+     xlab="Day of year / Julian Day (Observed)",
+     ylab="Daily Deaths (Fitted)",
+     main=expression(paste("Observed vs Fitted,  λ=5e-5")))
+lines(t, mu_hat, col="red", lwd=2)
+legend("topright", legend=c("Observed", "Fitted"),
+       col=c("black", "red"), pch=c(16, NA), lty=c(NA,1), bty="n")
 
 
 
