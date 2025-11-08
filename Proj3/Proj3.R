@@ -106,7 +106,7 @@ Xtilde <- mats$Xtilde ## X tilde
 # Penalty (P) = (λ/2)β'Sβ
 #
 # PNLL(β) = NLL(β) + P
-#   where NLL = sum(exp(eta) - y*eta)   (dropping constants)
+#   where NLL = sum(exp(eta) - y*eta) (dropping constants)
 #         P =  0.5 * lambda * gamma' S gamma 
 
 pen_nll <- function(gamma, X, y, S, lambda = 1e-1) {
@@ -134,17 +134,19 @@ pen_grad <- function(gamma, X, y, S, lambda = 1e-1) {
   as.vector(score + lambda * (S %*% gamma))     # add gradient of penalty
 }
 
-# Numerical gradient checker (slow but simple):
-# verifies pen_grad matches finite differences -> catches bugs.
-
-fd_grad <- function(fun, gamma, eps = 1e-6, ...) {
-  g <- numeric(length(gamma))
-  for (j in seq_along(gamma)) {
-    e <- rep(0, length(gamma)); e[j] <- eps
-    g[j] <- (fun(gamma + e, ...) - fun(gamma - e, ...)) / (2 * eps)
-  }
-  g
+# Checking the derivative (sp notes 74)
+K = 80
+fd <- gamma0 <- rep(0, K)       # start from all zeros
+lambda <- 1e-1   
+pen_nll0 = pen_nll(gamma0, X, y, S, lambda = 1e-1) 
+eps <- 1e-7
+for (i in 1:length(gamma0)) {
+  gamma1 = gamma0; gamma1[i] <- eps
+  pen_nll1 <- pen_nll(gamma1,X,y,S,lambda)
+  fd[i] <- (pen_nll1 - pen_nll0)/eps
 }
+fd; pen_grad(gamma0,X,y,S,lambda) ## already same
+range(fd - pen_grad(gamma0,X,y,S,lambda)) ## apx zero
 
 
 ##########################################################
