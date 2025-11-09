@@ -1,5 +1,5 @@
 start <- Sys.time()
-# PROJECT 3 - EXTENDED STATISTICAL PROGRAMMING =================================
+##=============== PROJECT 3 - EXTENDED STATISTICAL PROGRAMMING =================
 
 # Group 12 
 # Aseel Alghamdi : S2901228
@@ -17,7 +17,7 @@ start <- Sys.time()
 # https://github.com/fenandadwithak/Team12/tree/main/Proj3
 
 # ==============================================================================
-##                                   OUTLINE
+##                                  OUTLINE
 # ==============================================================================
 ## What you get:
 ## (1) 
@@ -28,7 +28,7 @@ start <- Sys.time()
 ## (6)
 
 
-##=========== Data Preparation & Load library ==================================
+##===================== Data Preparation & Load library ========================
 library(splines) #load library splines
 
 df <- read.table("engcov.txt", header = TRUE) # import datasets
@@ -148,7 +148,7 @@ for (i in 1:length(gamma0)) {
 fd; pen_grad(gamma0, X, y, S, lambda) ## already same
 range(fd - pen_grad(gamma0, X, y, S, lambda)) ## apx zero
 
-#================ (3) Fit the model using BFGS optimization ====================
+##================ (3) Fit the model using BFGS optimization ===================
 gamma0 <- rep(0, K)       # start from all zeros
 lambda <- 5e-5            # smoothing strength: larger -> smoother fitted curve
 
@@ -178,354 +178,29 @@ lines(t, mu_hat, col="red", lwd=2)
 legend("topright", legend=c("Observed", "Fitted"),
        col=c("black", "red"), pch=c(16, NA), lty=c(NA,1), bty="n")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+##================ (4) Fit the model using BFGS optimization ===================
+lambdas <- exp(seq(-13, -7, length=50))
+BIC_vals <- numeric(length(lambdas))
+best_fit <- NULL
+
+for (i in seq_along(lambdas)) {
+  fit <- optim(rep(0, ncol(X)), pen_ll, gr=pen_grad, method="BFGS",
+               y=y, X=X, S=S, lambda=lambdas[i], control=list(maxit=500))
+  beta_hat <- exp(fit$par)
+  mu_hat <- as.vector(X %*% beta_hat)
+  W <- diag(as.vector(y / mu_hat^2))
+  H0 <- t(X) %*% W %*% X
+  H_lambda <- H0 + lambdas[i] * S
+  EDF <- sum(diag(solve(H_lambda, H0)))
+  ll <- sum(y * log(mu_hat) - mu_hat)
+  BIC_vals[i] <- -2 * ll + log(length(y)) * EDF
+  if (is.null(best_fit) || BIC_vals[i] < min(BIC_vals[1:i])) best_fit <- fit
+}
+
+best_lambda <- lambdas[which.min(BIC_vals)]
+cat("Best lambda:", best_lambda, "\n")
+
+##======================== (5) Bootstrap Uncertainty ===========================
 
 
 
