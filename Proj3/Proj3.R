@@ -142,7 +142,7 @@ pen_nll0 <- pen_nll(gamma0, X, y, S, lambda)
 eps <- 1e-7
 for (i in 1:length(gamma0)) {
   gamma1 <- gamma0; gamma1[i] <- eps
-  pen_nll1 <- pen_nll(gamma1,X,y,S,lambda)
+  pen_nll1 <- pen_nll(gamma1, X, y, S, lambda)
   fd[i] <- (pen_nll1 - pen_nll0)/eps
 }
 fd; pen_grad(gamma0, X, y, S, lambda) ## already same
@@ -181,23 +181,24 @@ legend("topright", legend=c("Observed", "Fitted"),
 ##================ (4) Fit the model using BFGS optimization ===================
 lambdas <- exp(seq(-13, -7, length=50))
 BIC_vals <- numeric(length(lambdas))
-best_fit <- NULL
+fits <- vector("list", length(lambdas))
 
 for (i in seq_along(lambdas)) {
   fit <- optim(par=gamma0, fn=pen_nll, gr=pen_grad, method="BFGS",
                X=X, y=y, S=S, lambda=lambdas[i], control=list(maxit=1000))
-  beta_hat <- exp(fit$par)
-  mu_hat <- as.vector(X %*% beta_hat)
-  W <- diag(as.vector(y / mu_hat^2))
+  gamma_hat <- fit$par
+  mu_hat <- exp(as.vector(X %*% gamma_hat))
+  W <- diag(y / mu_hat^2)
   H0 <- t(X) %*% W %*% X
   H_lambda <- H0 + lambdas[i] * S
   EDF <- sum(diag(solve(H_lambda, H0)))
   ll <- sum(y * log(mu_hat) - mu_hat)
   BIC_vals[i] <- -2 * ll + log(length(y)) * EDF
-  if (is.null(best_fit) || BIC_vals[i] < min(BIC_vals[1:i])) best_fit <- fit
+  fits[[i]] <- fit
 }
 
 best_lambda <- lambdas[which.min(BIC_vals)]
+best_fit <- fits[[which.min(BIC_vals)]]
 cat("Best lambda:", best_lambda, "\n")
 
 ##======================== (5) Bootstrap Uncertainty ===========================
