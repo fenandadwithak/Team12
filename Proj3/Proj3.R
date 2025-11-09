@@ -8,7 +8,7 @@ start <- Sys.time()
 
 # Aseel     : Make function to contruct X, X tilde, and S (make_matrice)
 #             Make objective function and its derivative
-# Fenanda   : Bootstrap Uncertainty
+# Fenanda   : Bootstrap Uncertainty, 
 #             Make final plot
 #             Revise and put comment on code
 # Nurmawiya : Preliminary Sanity Check with initial lambda, making plot
@@ -222,275 +222,49 @@ for (i in seq_along(lambdas)) {
 best_lambda <- lambdas[which.min(BIC_vals)]
 cat("Best lambda:", best_lambda, "\n")
 
-##======================== (5) Bootstrap Uncertainty ===========================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Fenanda ----
-
-# ==============================================================================
-##                          NON-PARAMETRIC BOOTSTRAPING
-## =============================================================================
-
-# Penalised NLL (Bootsrap sampled data (weighted))
-pen_nll_weighted <- function(gamma, X, y, S, lambda, wb) {
-  # Function to compute penalised negative log likehood (bootstrap sampled data)
-  # Input/Argument : (1) Gamma : K-vector of spline coefficients
-  #                  (2) y :  the deaths on day of the year ti
-  #                  (3) S : penalised matrix
-  #                  (4) lambda : smoothing parameter
-  #                  (5) wb : weights
-  
-  # Output/Return  : single numeric value of pen_nll
-  eta <- as.vector(X %*% gamma)        # linear predictor 
-  mu  <- exp(eta)                      # Poisson mean (positive)
-  nll <- sum(w*(mu - y * eta))         # Poisson negative log-likelihood
-  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S %*% gamma))# penalty
-  nll + pen # pnll
-}##pen_nll_weighted
-
-# Fix use 
-pen_nll <- function(gamma, X, y, S, lambda, weight=1) {
-  # Function to compute penalised negative log likehood
-  # Input/Argument : (1) Gamma : K-vector of spline coefficients
-  #                  (2) y : the deaths on day of the year ti
-  #                  (3) S : penalised matrix
-  #                  (4) lambda : smoothing parameter
-  # Output/Return  : single numeric value of pen_nll
-  beta <- exp(gamma) # β = exp(γ)
-  mu <- as.vector(X %*% beta) # μ = Xβ
-  ll <- sum(w(y * log(mu) - mu)) # likelihood funct of possion dist
-  penalty <- 0.5 * lambda * t(beta) %*% (S %*% beta) # penalty
-  return(-ll + penalty)
-}##pen_nll
-
-# Define Gradient vector of Objective Function/ its derivative vector w.r.t γ
-# ...from bootstrap sampled data (weighted)
-pen_grad_weighted <- function(gamma, X, y, S, lambda, wb) {
-  # Analytic gradient: faster and more accurate than numerical
-  eta <- as.vector(X %*% gamma)
-  mu  <- exp(eta)
-  score <- t(X) %*% (wb*(mu - y))               # gradient of NLL part
-  as.vector(score + lambda * (S %*% gamma))     # add gradient of penalty
-}
-
-# Predicting f(t) for each sample data (200 sample sets)
-
+##=============== (5) Non Parametric Bootstrap Uncertainty =====================
 # Initialize number of replicate sample
-n_bootstrap = 200
+n_bootstrap = 200 
 
-# Initialize matrix to store 
+# Initialize matrix to store bootstrap replicates
 mat_boots <- matrix(NA, nrow=nrow(mats$Xtilde), ncol=n_bootstrap)
 
-for (b in 1:n_bootsrap) {
+for (b in 1:n_bootstrap) {
   wb <- tabulate(sample(n, replace=TRUE), n)
   fit_b <- optim(rep(0, ncol(X)), 
-                 pen_nll_weighted, gr=pen_grad_weighted, 
+                 pen_nll, gr=pen_grad, 
                  method="BFGS",
                  y=y, X=X, S=S, 
                  lambda=best_lambda, 
                  w=wb, 
                  control=list(maxit=1000))
   beta_b <- exp(fit_b$par)
-  f_boot[,b] <- mats$Xtilde %*% beta_b
+  mat_boots[,b] <- mats$Xtilde %*% beta_b ## estimate number of new infection
   if (b %% 10 == 0) cat("Bootstrap", b, "of", B, "\n")
 }
 
-find_best_lambda(X, y, S, lambdas, pen_nll, pen_grad)
+##=====================(6) Final Plot===========================================
+
+# Estimate the daily new infection rate f(t) with its 95% confidence limits
+mean_ft = rowMeans(mat_boots) # estimated mean number of new infections per day
+                              # averaged across all bootstrap replicates
+sd_ft = apply(mat_boots,1,sd) # estimated standard deviation number of new infec
+                              # across all bootstrap replicates
+ub_ft = mean_ft + (1.96*sd_ft)# Upper Bound 95% CI
+lb_ft = pmax(mean_ft - (1.96*sd_ft),0) # Lower Bound 95% CI, constraint no value
+                                       # lies below zero
+time_ft <- (min(t)-30):max(t)
+
+#  
+beta_hat <- exp(best_fit$par) # 
+mu_hat <- as.vector(X %*% beta_hat) # mean deaths per day (from based fit model)
+
+
+
+
+
+
+
 
 end <- Sys.time()
 end-start
