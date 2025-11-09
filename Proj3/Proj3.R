@@ -117,33 +117,38 @@ Xtilde <- mats$Xtilde ## X tilde
 # Penalised NLL = NLL + P
 
 # Objective Function
-pen_nll <- function(gamma, X, y, S, lambda) {
+pen_nll <- function(gamma, X, y, S, lambda, weight=1) {
   # Function to compute penalised negative log likehood
   # Input/Argument : (1) Gamma : K-vector of spline coefficients
   #                  (2) y : the deaths on day of the year ti
   #                  (3) S : penalised matrix
   #                  (4) lambda : smoothing parameter
+  #                  (5) weight : weight for bootstraping sampled data
+  #                      adjusted for more general use in this case
   
   # Output/Return  : single numeric value of pen_nll
   beta <- exp(gamma) # β = exp(γ)
   mu <- as.vector(X %*% beta) # μ = Xβ
-  ll <- sum(y * log(mu) - mu) # likelihood funct of possion dist
+  ll <- sum(weight*(y * log(mu) - mu)) # likelihood funct of possion dist
   penalty <- 0.5 * lambda * t(beta) %*% (S %*% beta) # penalty
   return(-ll + penalty)
 }##pen_nll
 
 
 # Define Gradient vector of Objective Function/ its derivative vector 
-pen_grad <- function(gamma, X, y, S, lambda) {
+pen_grad <- function(gamma, X, y, S, lambda, weight=1) {
   # Function to compute derivative vector
   # Input/Argument : (1) Gamma : K-vector of spline coefficients
   #                  (2) y : the deaths on day of the year ti
   #                  (3) S : penalised matrix
   #                  (4) lambda : smoothing parameter
+  #                  (5) weight : weight for bootstraping sampled data
+  #                      adjusted for more general use in this case
+  
   
   beta <- exp(gamma) # β = exp(γ)
   mu <- as.vector(X %*% beta) # μ = Xβ
-  F <- t(X) %*% (y / mu - 1) # ∂li/∂γj; or F =  diag(yi/µi−1).X.diag(β) 
+  F <- t(X) %*% (weight*(y / mu - 1)) # ∂li/∂γj; or F =  diag(yi/µi−1).X.diag(β) 
   grad_ll <- -F * beta # total derivative for all data
   grad_pen <- lambda * (beta * (S %*% beta)) # total gradient for penalty 
   return(as.vector(grad_ll + grad_pen))
@@ -437,6 +442,21 @@ pen_nll_weighted <- function(gamma, X, y, S, lambda, wb) {
   pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S %*% gamma))# penalty
   nll + pen # pnll
 }##pen_nll_weighted
+
+# Fix use 
+pen_nll <- function(gamma, X, y, S, lambda, weight=1) {
+  # Function to compute penalised negative log likehood
+  # Input/Argument : (1) Gamma : K-vector of spline coefficients
+  #                  (2) y : the deaths on day of the year ti
+  #                  (3) S : penalised matrix
+  #                  (4) lambda : smoothing parameter
+  # Output/Return  : single numeric value of pen_nll
+  beta <- exp(gamma) # β = exp(γ)
+  mu <- as.vector(X %*% beta) # μ = Xβ
+  ll <- sum(w(y * log(mu) - mu)) # likelihood funct of possion dist
+  penalty <- 0.5 * lambda * t(beta) %*% (S %*% beta) # penalty
+  return(-ll + penalty)
+}##pen_nll
 
 # Define Gradient vector of Objective Function/ its derivative vector w.r.t γ
 # ...from bootstrap sampled data (weighted)
