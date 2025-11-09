@@ -6,12 +6,14 @@ start <- Sys.time()
 # Fenanda Dwitha Kurniasari : S2744048
 # Nurmawiya : S2822251
 
-# Aseel     :
-#
-# Fenanda   : 
-#
-# Nurmawiya : 
-#
+# Aseel     : Make function to contruct X, X tilde, and S (make_matrice)
+#             Make objective function and its derivative
+# Fenanda   : Bootstrap Uncertainty
+#             Make final plot
+#             Revise and put comment on code
+# Nurmawiya : Preliminary Sanity Check with initial lambda, making plot
+#             Fit the model using BFGS
+#             Revise and put comment on code
 
 # Repository Link
 # https://github.com/fenandadwithak/Team12/tree/main/Proj3
@@ -99,6 +101,22 @@ Xtilde <- mats$Xtilde ## X tilde
 
 ##============= (2) Function Penalised NLL and its Objective Func. =============
 
+# In this part, we define objective function to be optimised. For this case, 
+# it's already given that f(t) has possion GLM distribution
+
+# First, we know that (log likehood funct of poisson) formula for poisson 
+#        l = ∑[yi.log(μi)−μi−log(yi!)]
+#        where  μ = Xβ
+#        Also, we drop log(yi!) as it does not depends on parameter
+#   
+# NLL = ∑(Xβ−y⋅log(Xβ))[Negative loglikelihood function]
+#       where β=exp(γ) (imposed for positivity)
+# Then, the penalty is applied to β (control smoothness of the function), 
+#       P = 0.5λβ'Sβ
+
+# Penalised NLL = NLL + P
+
+# Objective Function
 pen_nll <- function(gamma, X, y, S, lambda) {
   # Function to compute penalised negative log likehood
   # Input/Argument : (1) Gamma : K-vector of spline coefficients
@@ -107,25 +125,31 @@ pen_nll <- function(gamma, X, y, S, lambda) {
   #                  (4) lambda : smoothing parameter
   
   # Output/Return  : single numeric value of pen_nll
-  beta <- exp(gamma)
-  mu <- as.vector(X %*% beta)
-  ll <- sum(y * log(mu) - mu)
-  penalty <- 0.5 * lambda * t(beta) %*% S %*% beta
+  beta <- exp(gamma) # β = exp(γ)
+  mu <- as.vector(X %*% beta) # μ = Xβ
+  ll <- sum(y * log(mu) - mu) # likelihood funct of possion dist
+  penalty <- 0.5 * lambda * t(beta) %*% (S %*% beta) # penalty
   return(-ll + penalty)
 }##pen_nll
 
 
-# Define Gradient vector of Objective Function/ its derivative vector w.r.t γ
+# Define Gradient vector of Objective Function/ its derivative vector 
 pen_grad <- function(gamma, X, y, S, lambda) {
-  beta <- exp(gamma)
-  mu <- as.vector(X %*% beta)
-  F <- t(X) %*% (y / mu - 1)
-  grad_ll <- -F * beta
-  grad_pen <- lambda * (beta * (S %*% beta))
+  # Function to compute derivative vector
+  # Input/Argument : (1) Gamma : K-vector of spline coefficients
+  #                  (2) y : the deaths on day of the year ti
+  #                  (3) S : penalised matrix
+  #                  (4) lambda : smoothing parameter
+  
+  beta <- exp(gamma) # β = exp(γ)
+  mu <- as.vector(X %*% beta) # μ = Xβ
+  F <- t(X) %*% (y / mu - 1) # ∂li/∂γj; or F =  diag(yi/µi−1).X.diag(β) 
+  grad_ll <- -F * beta # total derivative for all data
+  grad_pen <- lambda * (beta * (S %*% beta)) # total gradient for penalty 
   return(as.vector(grad_ll + grad_pen))
 }
 
-# Checking the derivative (sp notes 74)
+# Checking the derivative (From SP Notes pg 74)
 K <- 80
 fd <- gamma0 <- rep(0, K)       # start from all zeros
 lambda <- 5e-5
@@ -133,7 +157,7 @@ pen_nll0 <- pen_nll(gamma0, X, y, S, lambda)
 eps <- 1e-7
 for (i in 1:length(gamma0)) {
   gamma1 <- gamma0; gamma1[i] <- eps
-  pen_nll1 <- pen_nll(gamma1, X, y, S, lambda)
+  pen_nll1 <- pen_nll(gamma1,X,y,S,lambda)
   fd[i] <- (pen_nll1 - pen_nll0)/eps
 }
 fd; pen_grad(gamma0, X, y, S, lambda) ## already same
@@ -174,7 +198,7 @@ plot((min(t)-30):max(t), f_hat, type="l", col="red", lwd=2,
 ##================ (4) Fit the model using BFGS optimization ===================
 lambdas <- exp(seq(-13, -7, length=50))
 BIC_vals <- numeric(length(lambdas))
-fits <- vector("list", length(lambdas))
+best_fit <- NULL
 
 for (i in seq_along(lambdas)) {
   fit <- optim(par=gamma0, fn=pen_nll, gr=pen_grad, method="BFGS",
@@ -397,11 +421,56 @@ cat("Best lambda:", best_lambda, "\n")
 ##                          NON-PARAMETRIC BOOTSTRAPING
 ## =============================================================================
 
+# Penalised NLL (Bootsrap sampled data (weighted))
+pen_nll_weighted <- function(gamma, X, y, S, lambda, wb) {
+  # Function to compute penalised negative log likehood (bootstrap sampled data)
+  # Input/Argument : (1) Gamma : K-vector of spline coefficients
+  #                  (2) y :  the deaths on day of the year ti
+  #                  (3) S : penalised matrix
+  #                  (4) lambda : smoothing parameter
+  #                  (5) wb : weights
+  
+  # Output/Return  : single numeric value of pen_nll
+  eta <- as.vector(X %*% gamma)        # linear predictor 
+  mu  <- exp(eta)                      # Poisson mean (positive)
+  nll <- sum(w*(mu - y * eta))         # Poisson negative log-likelihood
+  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S %*% gamma))# penalty
+  nll + pen # pnll
+}##pen_nll_weighted
+
+# Define Gradient vector of Objective Function/ its derivative vector w.r.t γ
+# ...from bootstrap sampled data (weighted)
+pen_grad_weighted <- function(gamma, X, y, S, lambda, wb) {
+  # Analytic gradient: faster and more accurate than numerical
+  eta <- as.vector(X %*% gamma)
+  mu  <- exp(eta)
+  score <- t(X) %*% (wb*(mu - y))               # gradient of NLL part
+  as.vector(score + lambda * (S %*% gamma))     # add gradient of penalty
+}
+
+# Predicting f(t) for each sample data (200 sample sets)
+
 # Initialize number of replicate sample
 n_bootstrap = 200
+
 # Initialize matrix to store 
+mat_boots <- matrix(NA, nrow=nrow(mats$Xtilde), ncol=n_bootstrap)
 
+for (b in 1:n_bootsrap) {
+  wb <- tabulate(sample(n, replace=TRUE), n)
+  fit_b <- optim(rep(0, ncol(X)), 
+                 pen_nll_weighted, gr=pen_grad_weighted, 
+                 method="BFGS",
+                 y=y, X=X, S=S, 
+                 lambda=best_lambda, 
+                 w=wb, 
+                 control=list(maxit=1000))
+  beta_b <- exp(fit_b$par)
+  f_boot[,b] <- mats$Xtilde %*% beta_b
+  if (b %% 10 == 0) cat("Bootstrap", b, "of", B, "\n")
+}
 
+find_best_lambda(X, y, S, lambdas, pen_nll, pen_grad)
 
 end <- Sys.time()
 end-start
