@@ -98,40 +98,31 @@ S <- mats$S ## S
 Xtilde <- mats$Xtilde ## X tilde
 
 ##============= (2) Function Penalised NLL and its Objective Func. =============
-# Model has the structure of a Poisson GLM, then we need to compute penalised
-# function. In this case, we want to define objective function PNLL(β)
-# 
-# Formula:
-# NLL = −ℓ(γ)= ∑[e^(ηi)−yi.ηi] where μi=e^(ηi)=e^(Xi.γ)
-# Penalty (P) = (λ/2)β'Sβ
-#
-# PNLL(β) = NLL(β) + P
-#   where NLL = sum(exp(eta) - y*eta) (dropping constants)
-#         P =  0.5 * lambda * gamma' S gamma 
 
 pen_nll <- function(gamma, X, y, S, lambda) {
   # Function to compute penalised negative log likehood
   # Input/Argument : (1) Gamma : K-vector of spline coefficients
-  #                  (2) y :  the deaths on day of the year ti
+  #                  (2) y : the deaths on day of the year ti
   #                  (3) S : penalised matrix
   #                  (4) lambda : smoothing parameter
   
   # Output/Return  : single numeric value of pen_nll
-  eta <- as.vector(X %*% gamma)               # linear predictor 
-  mu  <- exp(eta)                             # Poisson mean (positive)
-  nll <- sum(mu - y * eta)                    # Poisson negative log-likelihood
-  pen <- 0.5 * lambda * as.numeric(t(gamma) %*% (S %*% gamma))# penalty
-  nll + pen # pnll
+  beta <- exp(gamma)
+  mu <- as.vector(X %*% beta)
+  ll <- sum(y * log(mu) - mu)
+  penalty <- 0.5 * lambda * t(beta) %*% S %*% beta
+  return(-ll + penalty)
 }##pen_nll
 
 
 # Define Gradient vector of Objective Function/ its derivative vector w.r.t γ
 pen_grad <- function(gamma, X, y, S, lambda) {
-  # Analytic gradient: faster and more accurate than numerical
-  eta <- as.vector(X %*% gamma)
-  mu  <- exp(eta)
-  score <- t(X) %*% (mu - y)                    # gradient of NLL part
-  as.vector(score + lambda * (S %*% gamma))     # add gradient of penalty
+  beta <- exp(gamma)
+  mu <- as.vector(X %*% beta)
+  F <- t(X) %*% (y / mu - 1)
+  grad_ll <- -F * beta
+  grad_pen <- lambda * (beta * (S %*% beta))
+  return(as.vector(grad_ll + grad_pen))
 }
 
 # Checking the derivative (sp notes 74)
@@ -162,21 +153,23 @@ fit <- optim(
   X=X, y=y, S=S, lambda=lambda
 )
 
-gamma_hat <- fit$par # estimated spline coefficients (K-vector)
-eta_hat  <- as.vector(X %*% gamma_hat) # fitted linear predictor (log-scale)
-mu_hat <- exp(eta_hat)  # fitted mean counts (always > 0)
-f_hat <- Xtilde %*% gamma_hat #
-
-fit$convergence # 0 means successful
-fit$value #final objective value for reference
+beta_hat <- exp(fit$par) # estimated spline coefficients (K-vector)
+mu_hat <- as.vector(X %*% beta_hat)
 
 plot(t, y, pch=16, col="black",
      xlab="Day of year / Julian Day (Observed)",
-     ylab="Daily Deaths (Fitted)",
-     main=expression(paste("Observed vs Fitted,  λ=5e-5")))
+     ylab="Daily Deaths (Counts)",
+     main=expression(paste("Observed vs Fitted Deaths,  λ=5e-5")))
 lines(t, mu_hat, col="red", lwd=2)
 legend("topright", legend=c("Observed", "Fitted"),
        col=c("black", "red"), pch=c(16, NA), lty=c(NA,1), bty="n")
+
+# Plot estimated infection rate f(t)
+f_hat <- Xtilde %*% beta_hat #fitted infection rate f(t)
+plot((min(t)-30):max(t), f_hat, type="l", col="red", lwd=2,
+     xlab="Day (since start of 2020)",
+     ylab=expression(hat(f)(t)),
+     main=expression(paste("Estimated infection rate ", hat(f)(t),"(λ=5e-5)")))
 
 ##================ (4) Fit the model using BFGS optimization ===================
 lambdas <- exp(seq(-13, -7, length=50))
@@ -186,19 +179,18 @@ fits <- vector("list", length(lambdas))
 for (i in seq_along(lambdas)) {
   fit <- optim(par=gamma0, fn=pen_nll, gr=pen_grad, method="BFGS",
                X=X, y=y, S=S, lambda=lambdas[i], control=list(maxit=1000))
-  gamma_hat <- fit$par
-  mu_hat <- exp(as.vector(X %*% gamma_hat))
-  W <- diag(y / mu_hat^2)
+  beta_hat <- exp(fit$par)
+  mu_hat <- as.vector(X %*% beta_hat)
+  W <- diag(as.vector(y / mu_hat^2))
   H0 <- t(X) %*% W %*% X
   H_lambda <- H0 + lambdas[i] * S
   EDF <- sum(diag(solve(H_lambda, H0)))
   ll <- sum(y * log(mu_hat) - mu_hat)
   BIC_vals[i] <- -2 * ll + log(length(y)) * EDF
-  fits[[i]] <- fit
+  if (is.null(best_fit) || BIC_vals[i] < min(BIC_vals[1:i])) best_fit <- fit
 }
 
 best_lambda <- lambdas[which.min(BIC_vals)]
-best_fit <- fits[[which.min(BIC_vals)]]
 cat("Best lambda:", best_lambda, "\n")
 
 ##======================== (5) Bootstrap Uncertainty ===========================
