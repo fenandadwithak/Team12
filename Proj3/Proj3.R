@@ -184,8 +184,8 @@ BIC_vals <- numeric(length(lambdas))
 best_fit <- NULL
 
 for (i in seq_along(lambdas)) {
-  fit <- optim(rep(0, ncol(X)), pen_ll, gr=pen_grad, method="BFGS",
-               y=y, X=X, S=S, lambda=lambdas[i], control=list(maxit=500))
+  fit <- optim(par=gamma0, fn=pen_nll, gr=pen_grad, method="BFGS",
+               X=X, y=y, S=S, lambda=lambdas[i], control=list(maxit=1000))
   beta_hat <- exp(fit$par)
   mu_hat <- as.vector(X %*% beta_hat)
   W <- diag(as.vector(y / mu_hat^2))
