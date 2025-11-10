@@ -186,20 +186,26 @@ fit <- optim(
 beta_hat <- exp(fit$par) # estimated spline coefficients (K-vector)
 mu_hat <- as.vector(X %*% beta_hat)
 
-plot(t, y, pch=16, col="black",
-     xlab="Day of year / Julian Day (Observed)",
-     ylab="Daily Deaths (Counts)",
-     main=expression(paste("Observed vs Fitted Deaths,  λ=5e-5")))
-lines(t, mu_hat, col="red", lwd=2)
-legend("topright", legend=c("Observed", "Fitted"),
-       col=c("black", "red"), pch=c(16, NA), lty=c(NA,1), bty="n")
+deaths_df <- data.frame(day = t, deaths = y, fitted = mu_hat)
+infect_df <- data.frame(day = (min(t)-30):max(t), f_hat = as.vector(Xtilde %*% beta_hat))
 
-# Plot estimated infection rate f(t)
-f_hat <- Xtilde %*% beta_hat #fitted infection rate f(t)
-plot((min(t)-30):max(t), f_hat, type="l", col="red", lwd=2,
-     xlab="Day (since start of 2020)",
-     ylab=expression(hat(f)(t)),
-     main=expression(paste("Estimated infection rate ", hat(f)(t),"(λ=5e-5)")))
+# Combined Plot
+ggplot() +
+  geom_point(data = deaths_df, aes(x = day, y = deaths), color = "black", size=1.5) +
+  geom_line(data = deaths_df, aes(x = day, y = fitted), color = "red", size=1) +
+  geom_line(data = infect_df, aes(x = day, y = f_hat), color = "blue", size = 1) +
+  labs(
+    x = "Day of year / Julian Day (Observed)",
+    y = "Daily Deaths (Counts)",
+    title = expression(paste("Observed vs Fitted Deaths, ", lambda, "=5e-5")),
+    subtitle = "Black: Observed | Red: Fitted deaths | Blue: Estimated infection rate"
+  ) +
+  theme_bw() +
+  theme(
+    axis.title.y.left = element_text(color="black"),
+    axis.title.y.right = element_text(color="blue")
+  ) +
+  scale_y_continuous(sec.axis = sec_axis(~., name = expression(hat(f)(t))))
 
 ##================ (4) Fit the model using BFGS optimization ===================
 lambdas <- exp(seq(-13, -7, length=50))
