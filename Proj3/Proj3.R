@@ -190,22 +190,32 @@ deaths_df <- data.frame(day = t, deaths = y, fitted = mu_hat)
 infect_df <- data.frame(day = (min(t)-30):max(t), f_hat = as.vector(Xtilde %*% beta_hat))
 
 # Combined Plot
+windows()
 ggplot() +
-  geom_point(data = deaths_df, aes(x = day, y = deaths), color = "black", size=1.5) +
-  geom_line(data = deaths_df, aes(x = day, y = fitted), color = "red", size=1) +
-  geom_line(data = infect_df, aes(x = day, y = f_hat), color = "blue", size = 1) +
+  geom_point(data = deaths_df, aes(x = day, y = deaths, color = "Observed Deaths"), size=1.5) +
+  geom_line(data = deaths_df, aes(x = day, y = fitted, color = "Fitted Deaths"), size=1) +
+  geom_line(data = infect_df, aes(x = day, y = f_hat, color = "New Infection f(t)"), size = 1) +
   labs(
-    x = "Day of year / Julian Day (Observed)",
+    x = "Day of year / Julian Day Observed",
     y = "Daily Deaths (Counts)",
-    title = expression(paste("Observed vs Fitted Deaths, ", lambda, "=5e-5")),
-    subtitle = "Black: Observed | Red: Fitted deaths | Blue: Estimated infection rate"
+    title = expression(paste("The daily death and estimated number of daily infection, ", lambda, "=5e-5")),
+    color = "Legend"
   ) +
+  scale_color_manual(
+    values = c(
+      "Observed Deaths" = "black",
+      "Fitted Deaths" = "red",
+      "New Infection f(t)" = "blue"
+    )) +
   theme_bw() +
   theme(
     axis.title.y.left = element_text(color="black"),
-    axis.title.y.right = element_text(color="blue")
+    axis.title.y.right = element_text(color="blue"),
+    legend.position = c(0.85, 0.75)
   ) +
   scale_y_continuous(sec.axis = sec_axis(~., name = expression(hat(f)(t))))
+
+
 
 ##================ (4) Fit the model using BFGS optimization ===================
 lambdas <- exp(seq(-13, -7, length=50))
@@ -265,38 +275,87 @@ time_ft <- (min(t)-30):max(t)
 beta_hat <- exp(best_fit$par) # 
 mu_hat <- as.vector(X %*% beta_hat) # mean deaths per day (from based fit model)
 
-windows()
-# Final Plot
+
+# Final Plot (Bootstrap)
+# Combined Plot
 deaths_df <- data.frame(day=t, deaths=y, model_fit=mu_hat)
 infect_df <- data.frame(day=time_ft, mean=mean_ft, lb=lb_ft, ub=ub_ft)
 
-# Plot main: deaths + model fit
-p1 <- ggplot(deaths_df, aes(x=day)) +
-  geom_col(aes(y=deaths), fill="grey40", width=1) +
-  geom_line(aes(y=model_fit), color="red", size=1.1) +
-  labs(x="Day of year (2020)",
-       y="Daily hospital deaths",
-       title="COVID-19 daily deaths and inferred new infections in England") +
+windows()
+# Final Plot (Bootstrap)
+# Combined Plot
+deaths_df <- data.frame(day = t, deaths = y, model_fit = mu_hat)
+infect_df <- data.frame(day = time_ft, mean = mean_ft, lb = lb_ft, ub = ub_ft)
+
+ggplot() +
+  geom_ribbon(
+    data = infect_df,
+    aes(x = day, ymin = lb, ymax = ub, fill = "CI")
+  ) +
+  geom_point(
+    data = deaths_df,
+    aes(x = day, y = deaths, color = "Observed Deaths"),
+    size = 1.5
+  ) +
+  geom_line(
+    data = deaths_df,
+    aes(x = day, y = model_fit, color = "Fitted Deaths"),
+    size = 1
+  ) +
+  geom_line(
+    data = infect_df,
+    aes(x = day, y = mean, color = "New Infection f(t)"),
+    size = 1
+  ) +
+  labs(
+    x = "Day of year / Julian Day Observed",
+    y = "Daily Deaths (Counts)",
+    title = "The daily death and estimated number of daily infection",
+    color = "Legend",
+    fill = "Legend"
+  ) +
+  scale_color_manual(
+    values = c(
+      "Observed Deaths" = "black",
+      "Fitted Deaths" = "red",
+      "New Infection f(t)" = "blue"
+    ),
+    guide = "legend"
+  ) +
+  scale_fill_manual(
+    values = c("CI" = rgb(0.53, 0.81, 0.98, 0.25)),
+    guide = "legend"
+  ) +
+  guides(
+    color = guide_legend(
+      title = "Legend",
+      order = 1,
+      override.aes = list(fill = NA)
+    ),
+    fill = guide_legend(
+      title = NULL,
+      order = 1,
+      override.aes = list(
+        linetype = 0,
+        shape = 22,
+        size = 5,
+        color = NA,
+        fill = rgb(0.53, 0.81, 0.98, 0.25)
+      )
+    )
+  ) +
   theme_bw() +
   theme(
-    axis.title.y.left = element_text(color="grey40"),
-    axis.title.y.right = element_text(color="blue")
+    legend.position = c(0.85, 0.75),
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.box.background = element_rect(color = "gray70", linetype = "dotted"),
+    legend.title = element_text(face = "bold"),
+    legend.key.height = unit(0.4, "lines"),
+    legend.key.width  = unit(1, "lines"),
+    legend.spacing.y  = unit(0.05, "lines"),
+    legend.margin = margin(2, 2, 2, 2)
   )
 
-# Second plot: overlay infections as shaded band + blue line (with sec axis)
-p2 <- p1 +
-  geom_ribbon(data=infect_df,
-              aes(x=day, ymin=lb, ymax=ub), fill="blue", alpha=0.15, inherit.aes=FALSE) +
-  geom_line(data=infect_df,
-            aes(x=day, y=mean), color="blue", size=1.1, inherit.aes=FALSE) +
-  scale_y_continuous(
-    sec.axis = sec_axis(~., name="Estimated daily new infections")
-  )
-
-# Add legends using manual guides (or color)
-p2 +
-  guides(fill=guide_legend("95% CI"), color=guide_legend("Model fit / New infection")) +
-  theme(legend.position = "top")
 
 
 
