@@ -240,7 +240,6 @@ for (b in 1:n_bootstrap) {
                  control=list(maxit=1000))
   beta_b <- exp(fit_b$par)
   mat_boots[,b] <- mats$Xtilde %*% beta_b ## estimate number of new infection
-  if (b %% 10 == 0) cat("Bootstrap", b, "of", n_bootstrap, "\n")
 }
 
 ##=====================(6) Final Plot===========================================
