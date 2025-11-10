@@ -258,10 +258,27 @@ time_ft <- (min(t)-30):max(t)
 beta_hat <- exp(best_fit$par) # 
 mu_hat <- as.vector(X %*% beta_hat) # mean deaths per day (from based fit model)
 
+windows()
+# Final Plot
+par(mar=c(5,4,4,4)+0.1)
+plot(t, y, type='h', lwd=2, col="grey40",
+     xlab="Day of year (2020)",
+     ylab="Daily hospital deaths",
+     main="COVID-19 daily deaths and inferred new infections in England")
+lines(t, mu_hat, col="red", lwd=2)
+legend("topleft", inset=0.01, bty="n",
+       legend=c("Observed deaths","Model fit"), col=c("grey40","red"), lwd=c(2,2))
 
-
-
-
+par(new=TRUE)
+plot(time_ft, mean_ft, type='l', col="blue", lwd=2,
+     axes=FALSE, xlab="", ylab="", ylim=c(0, max(ub_ft)))
+polygon(c(time_ft, rev(time_ft)), c(lb_ft, rev(ub_ft)),
+        col=rgb(0,0,1,0.15), border=NA)
+axis(side=4)
+mtext("Estimated daily new infections", side=4, line=3, col="blue")
+legend("topright", inset=0.01, bty="n",
+       legend=c(expression(hat(f)(t)), "95% CI"),
+       col=c("blue", rgb(0,0,1,0.3)), lwd=c(2,10), pch=c(NA,15))
 
 
 
