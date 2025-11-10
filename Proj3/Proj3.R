@@ -262,63 +262,46 @@ for (b in 1:n_bootstrap) {
 ##=====================(6) Final Plot===========================================
 
 # Estimate the daily new infection rate f(t) with its 95% confidence limits
-df = data.frame(time_ft=(min(t)-30):max(t),
-                mean_ft=rowMeans(mat_boots),
-                sd_ft=apply(mat_boots,1,sd),
-                lb_ft=t(apply(mat_boots,1,
+infect = data.frame(time_ft=(min(t)-30):max(t), 
+                    mean_ft=rowMeans(mat_boots), #estimated mean of f(t)
+                    sd_ft=apply(mat_boots,1,sd), #estimated sd of f(t)
+                    lb_ft=t(apply(mat_boots,1, #lower bound, take the first row
                               function(x) quantile(x,c(0.025,0.975))))[,1],
-                ub_ft=t(apply(mat_boots,1,
-                              function(x) quantile(x,c(0.025,0.975))))[,2],
-                )
-# ci
-t(apply(mat_boots,1,function(x) quantile(x,c(0.025,0.975))))
+                    ub_ft=t(apply(mat_boots,1, #upper bound, take the second row
+                              function(x) quantile(x,c(0.025,0.975))))[,2]
+                    )
 
-
-mean_ft = rowMeans(mat_boots) # estimated mean number of new infections per day
-                              # averaged across all bootstrap replicates
-sd_ft = apply(mat_boots,1,sd) # estimated standard deviation number of new infec
-                              # across all bootstrap replicates
-ub_ft = mean_ft + (1.96*sd_ft)# Upper Bound 95% CI
-lb_ft = pmax(mean_ft - (1.96*sd_ft),0) # Lower Bound 95% CI, constraint no value
-                                       # lies below zero
-time_ft <- (min(t)-30):max(t)
-dim(mat_boots)
-#  
+# Estimate death and observed death
 beta_hat <- exp(best_fit$par) # 
 mu_hat <- as.vector(X %*% beta_hat) # mean deaths per day (from based fit model)
-
+deaths <- data.frame(day = t, deaths = y, model_fit = mu_hat)
 
 # Final Plot (Bootstrap)
-# Combined Plot
-deaths_df <- data.frame(day=t, deaths=y, model_fit=mu_hat)
-infect_df <- data.frame(day=time_ft, mean=mean_ft, lb=lb_ft, ub=ub_ft)
-
-windows()
-# Final Plot (Bootstrap)
-# Combined Plot
-deaths_df <- data.frame(day = t, deaths = y, model_fit = mu_hat)
-infect_df <- data.frame(day = time_ft, mean = mean_ft, lb = lb_ft, ub = ub_ft)
-
 ggplot() +
+  ## Add 95% CI to plot
   geom_ribbon(
-    data = infect_df,
-    aes(x = day, ymin = lb, ymax = ub, fill = "CI")
+    data = infect,
+    aes(x = time_ft, ymin = lb_ft, ymax = ub_ft, fill = "CI")
   ) +
+  ## Add point represents death recorded from nhs data
   geom_point(
-    data = deaths_df,
+    data = deaths,
     aes(x = day, y = deaths, color = "Observed Deaths"),
     size = 1.5
   ) +
+  ## Add line represents estimated death
   geom_line(
-    data = deaths_df,
-    aes(x = day, y = model_fit, color = "Fitted Deaths"),
+    data = deaths,
+    aes(x = day, y = mu_hat, color = "Fitted Deaths"),
     size = 1
   ) +
+  ## Add line represents estimated f(t) based on 200 replicates data
   geom_line(
-    data = infect_df,
-    aes(x = day, y = mean, color = "New Infection f(t)"),
+    data = infect,
+    aes(x = time_ft, y = mean_ft, color = "New Infection f(t)"),
     size = 1
   ) +
+  ## Add label
   labs(
     x = "Day of year / Julian Day Observed",
     y = "Daily Deaths (Counts)",
@@ -326,6 +309,7 @@ ggplot() +
     color = "Legend",
     fill = "Legend"
   ) +
+  ## Add legend for line and points
   scale_color_manual(
     values = c(
       "Observed Deaths" = "black",
@@ -334,6 +318,7 @@ ggplot() +
     ),
     guide = "legend"
   ) +
+  ## Add legend for CI
   scale_fill_manual(
     values = c("CI" = rgb(0.53, 0.81, 0.98, 0.25)),
     guide = "legend"
@@ -357,6 +342,7 @@ ggplot() +
     )
   ) +
   theme_bw() +
+  # Adjust position
   theme(
     legend.position = c(0.85, 0.75),
     legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
