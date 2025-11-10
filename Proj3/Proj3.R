@@ -332,7 +332,7 @@ ggplot() +
       override.aes = list(fill = NA)
     ),
     fill = guide_legend(
-      title = NULL,
+      title = NULL, ## no titles for CI's legend
       order = 1,
       override.aes = list(
         linetype = 0,
