@@ -32,6 +32,7 @@ start <- Sys.time()
 
 ##===================== Data Preparation & Load library ========================
 library(splines) #load library splines
+library(ggplot2)
 
 df <- read.table("engcov.txt", header = TRUE) # import datasets
 y <- df$nhs; t <- df$julian
@@ -260,25 +261,37 @@ mu_hat <- as.vector(X %*% beta_hat) # mean deaths per day (from based fit model)
 
 windows()
 # Final Plot
-par(mar=c(5,4,4,4)+0.1)
-plot(t, y, type='h', lwd=2, col="grey40",
-     xlab="Day of year (2020)",
-     ylab="Daily hospital deaths",
-     main="COVID-19 daily deaths and inferred new infections in England")
-lines(t, mu_hat, col="red", lwd=2)
-legend("topleft", inset=0.01, bty="n",
-       legend=c("Observed deaths","Model fit"), col=c("grey40","red"), lwd=c(2,2))
+deaths_df <- data.frame(day=t, deaths=y, model_fit=mu_hat)
+infect_df <- data.frame(day=time_ft, mean=mean_ft, lb=lb_ft, ub=ub_ft)
 
-par(new=TRUE)
-plot(time_ft, mean_ft, type='l', col="blue", lwd=2,
-     axes=FALSE, xlab="", ylab="", ylim=c(0, max(ub_ft)))
-polygon(c(time_ft, rev(time_ft)), c(lb_ft, rev(ub_ft)),
-        col=rgb(0,0,1,0.15), border=NA)
-axis(side=4)
-mtext("Estimated daily new infections", side=4, line=3, col="blue")
-legend("topright", inset=0.01, bty="n",
-       legend=c(expression(hat(f)(t)), "95% CI"),
-       col=c("blue", rgb(0,0,1,0.3)), lwd=c(2,10), pch=c(NA,15))
+# Plot main: deaths + model fit
+p1 <- ggplot(deaths_df, aes(x=day)) +
+  geom_col(aes(y=deaths), fill="grey40", width=1) +
+  geom_line(aes(y=model_fit), color="red", size=1.1) +
+  labs(x="Day of year (2020)",
+       y="Daily hospital deaths",
+       title="COVID-19 daily deaths and inferred new infections in England") +
+  theme_bw() +
+  theme(
+    axis.title.y.left = element_text(color="grey40"),
+    axis.title.y.right = element_text(color="blue")
+  )
+
+# Second plot: overlay infections as shaded band + blue line (with sec axis)
+p2 <- p1 +
+  geom_ribbon(data=infect_df,
+              aes(x=day, ymin=lb, ymax=ub), fill="blue", alpha=0.15, inherit.aes=FALSE) +
+  geom_line(data=infect_df,
+            aes(x=day, y=mean), color="blue", size=1.1, inherit.aes=FALSE) +
+  scale_y_continuous(
+    sec.axis = sec_axis(~., name="Estimated daily new infections")
+  )
+
+# Add legends using manual guides (or color)
+p2 +
+  guides(fill=guide_legend("95% CI"), color=guide_legend("Model fit / New infection")) +
+  theme(legend.position = "top")
+
 
 
 
