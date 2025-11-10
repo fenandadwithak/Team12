@@ -262,6 +262,18 @@ for (b in 1:n_bootstrap) {
 ##=====================(6) Final Plot===========================================
 
 # Estimate the daily new infection rate f(t) with its 95% confidence limits
+df = data.frame(time_ft=(min(t)-30):max(t),
+                mean_ft=rowMeans(mat_boots),
+                sd_ft=apply(mat_boots,1,sd),
+                lb_ft=t(apply(mat_boots,1,
+                              function(x) quantile(x,c(0.025,0.975))))[,1],
+                ub_ft=t(apply(mat_boots,1,
+                              function(x) quantile(x,c(0.025,0.975))))[,2],
+                )
+# ci
+t(apply(mat_boots,1,function(x) quantile(x,c(0.025,0.975))))
+
+
 mean_ft = rowMeans(mat_boots) # estimated mean number of new infections per day
                               # averaged across all bootstrap replicates
 sd_ft = apply(mat_boots,1,sd) # estimated standard deviation number of new infec
@@ -270,7 +282,7 @@ ub_ft = mean_ft + (1.96*sd_ft)# Upper Bound 95% CI
 lb_ft = pmax(mean_ft - (1.96*sd_ft),0) # Lower Bound 95% CI, constraint no value
                                        # lies below zero
 time_ft <- (min(t)-30):max(t)
-
+dim(mat_boots)
 #  
 beta_hat <- exp(best_fit$par) # 
 mu_hat <- as.vector(X %*% beta_hat) # mean deaths per day (from based fit model)
