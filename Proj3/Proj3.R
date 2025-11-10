@@ -49,7 +49,7 @@ make_matrices <- function(t, K=80) {
   # Input/Arguments :(1) t, a vector of day since 2020. In this dataset, we use 
   #                      julian
   #                  (2) K, number of basis function, set to 80
-  #                      larger K would result smoother model
+  #                      larger K gives a more flexible/wigglier basis
   #
   # Output/Return   :(1) Xtilde, a model matrix (spline basis) to predict f(t) 
   #                      f(t) = b1(t)β1 + b2(t)β2 + ... + bk(t)βk
@@ -224,7 +224,7 @@ cat("Best lambda:", best_lambda, "\n")
 
 ##=============== (5) Non Parametric Bootstrap Uncertainty =====================
 # Initialize number of replicate sample
-n_bootstrap = 200 
+n_bootstrap <- 200 
 
 # Initialize matrix to store bootstrap replicates
 mat_boots <- matrix(NA, nrow=nrow(mats$Xtilde), ncol=n_bootstrap)
@@ -236,11 +236,11 @@ for (b in 1:n_bootstrap) {
                  method="BFGS",
                  y=y, X=X, S=S, 
                  lambda=best_lambda, 
-                 w=wb, 
+                 weight=wb, 
                  control=list(maxit=1000))
   beta_b <- exp(fit_b$par)
   mat_boots[,b] <- mats$Xtilde %*% beta_b ## estimate number of new infection
-  if (b %% 10 == 0) cat("Bootstrap", b, "of", B, "\n")
+  if (b %% 10 == 0) cat("Bootstrap", b, "of", n_bootstrap, "\n")
 }
 
 ##=====================(6) Final Plot===========================================
