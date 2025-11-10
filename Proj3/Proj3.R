@@ -265,6 +265,8 @@ for (b in 1:n_bootstrap) {
 infect = data.frame(time_ft=(min(t)-30):max(t), 
                     mean_ft=rowMeans(mat_boots), #estimated mean of f(t)
                     sd_ft=apply(mat_boots,1,sd), #estimated sd of f(t)
+                    
+                    # apply is used for calculate quantile per row/observed days
                     lb_ft=t(apply(mat_boots,1, #lower bound, take the first row
                               function(x) quantile(x,c(0.025,0.975))))[,1],
                     ub_ft=t(apply(mat_boots,1, #upper bound, take the second row
