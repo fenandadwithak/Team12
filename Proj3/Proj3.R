@@ -66,11 +66,17 @@ make_matrices <- function(t, K=80) {
   # (min(t)-30) because for the earliest records, deaths might be caused by the
   # infection happened around 30 days ago, until maximum day observed (max(t))
   # for as many as K+4 evenly spaced, so there will be a sequence of 84 numbers
-  knots <- seq(min(t)-30, max(t), length.out=K+4)
   
-  Xtilde <- splineDesign(knots=knots, 
+  # Define Knots
+  internal_knots <- seq(min(t)-30, max(t), length.out = K-2)
+  range_knot = internal_knots[3]-internal_knots[2]
+  before_knots = internal_knots[1] - 3:1*range_knot
+  after_knots = internal_knots[length(internal_knots)] + 1:3*range_knot
+  full_knots = c(before_knots, internal_knots, after_knots)
+  
+  Xtilde <- splineDesign(knots=full_knots, 
                          x=(min(t)-30):max(t), 
-                         ord=4,
+                         ord=4, # cubic splines
                          outer.ok= TRUE)#construct matrix X-tilde using 
                                         #splineDesign with 84 knots as defined 
                                         #before starting from min(t)-30 until 
