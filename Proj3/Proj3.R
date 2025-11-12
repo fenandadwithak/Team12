@@ -257,7 +257,7 @@ cat("Best lambda:", best_lambda, "\n")
 n_bootstrap <- 200 
 
 # Initialize matrix to store bootstrap replicates
-mat_boots <- matrix(NA, nrow=nrow(mats$Xtilde), ncol=n_bootstrap)
+mat_boots <- matrix(NA, nrow=nrow(Xtilde), ncol=n_bootstrap)
 
 for (b in 1:n_bootstrap) {
   wb <- tabulate(sample(n, replace=TRUE), n)
@@ -268,7 +268,7 @@ for (b in 1:n_bootstrap) {
                  lambda=best_lambda, 
                  weight=wb)
   beta_b <- exp(fit_b$par)
-  mat_boots[,b] <- mats$Xtilde %*% beta_b ## estimate number of new infection
+  mat_boots[,b] <- Xtilde %*% beta_b ## estimate number of new infection
 }
 
 ##=====================(6) Final Plot===========================================
