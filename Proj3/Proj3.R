@@ -8,7 +8,8 @@ start <- Sys.time()
 
 # Aseel     : Make function to contruct X, X tilde, and S (make_matrice)
 #             Make objective function and its derivative
-# Fenanda   : Bootstrap Uncertainty, 
+#             Revise and put comment on code
+# Fenanda   : Bootstrap Uncertainty
 #             Make final plot
 #             Revise and put comment on code
 # Nurmawiya : Preliminary Sanity Check with initial lambda, making plot
@@ -136,7 +137,8 @@ pen_nll <- function(gamma, X, y, S, lambda, weight=1) {
   # Output/Return  : single numeric value of pen_nll
   beta <- exp(gamma) # β = exp(γ)
   mu <- as.vector(X %*% beta) # μ = Xβ
-  ll <- sum(weight*((y * log(mu)) - mu - lgamma(y+1))) # likelihood funct of possion dist
+  ll <- sum(weight*((y * log(mu)) - mu))
+  # likelihood funct of possion dist
   penalty <- 0.5 * lambda * t(beta) %*% (S %*% beta) # penalty
   return(-ll + penalty)
 }##pen_nll
@@ -244,7 +246,10 @@ for (i in seq_along(lambdas)) {
   BIC_vals[i] <- -2 * ll + log(length(y)) * EDF
 }
 
+#plot BIC against lambda
 best_lambda <- lambdas[which.min(BIC_vals)]
+plot(seq_along(lambdas), BIC_vals)
+
 cat("Best lambda:", best_lambda, "\n")
 
 ##=============== (5) Non Parametric Bootstrap Uncertainty =====================
