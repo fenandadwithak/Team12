@@ -8,8 +8,7 @@ start <- Sys.time()
 
 # Aseel     : Make function to contruct X, X tilde, and S (make_matrice)
 #             Make objective function and its derivative
-#             Revise and put comment on code
-# Fenanda   : Bootstrap Uncertainty
+# Fenanda   : Bootstrap Uncertainty, 
 #             Make final plot
 #             Revise and put comment on code
 # Nurmawiya : Preliminary Sanity Check with initial lambda, making plot
@@ -67,14 +66,6 @@ make_matrices <- function(t, K=80) {
   # (min(t)-30) because for the earliest records, deaths might be caused by the
   # infection happened around 30 days ago, until maximum day observed (max(t))
   # for as many as K+4 evenly spaced, so there will be a sequence of 84 numbers
-<<<<<<< HEAD
-  int_knots <- seq(min(t)-30, max(t), length.out=K-2)
-  range_knots <- int_knots[3]-int_knots[2]
-  before_int <- int_knots[1] - 3:1*range_knots
-  after_int <- int_knots[length(int_knots)] + 1:3*range_knots
-  knots <- c(before_int, int_knots, after_int)
-=======
->>>>>>> e8200c464c8f9f3640374784ec69bcf7927603c0
   
   # Define Knots
   internal_knots <- seq(min(t)-30, max(t), length.out = K-2)
@@ -144,9 +135,8 @@ pen_nll <- function(gamma, X, y, S, lambda, weight=1) {
   
   # Output/Return  : single numeric value of pen_nll
   beta <- exp(gamma) # β = exp(γ)
-  mu <- X %*% beta # μ = Xβ
-  ll <- sum(weight*((y * log(mu)) - mu - lgamma(y+1)))
-  # likelihood funct of possion dist
+  mu <- as.vector(X %*% beta) # μ = Xβ
+  ll <- sum(weight*(y * log(mu) - mu)) # likelihood funct of possion dist
   penalty <- 0.5 * lambda * t(beta) %*% (S %*% beta) # penalty
   return(-ll + penalty)
 }##pen_nll
@@ -164,7 +154,7 @@ pen_grad <- function(gamma, X, y, S, lambda, weight=1) {
   
   
   beta <- exp(gamma) # β = exp(γ)
-  mu <- X %*% beta # μ = Xβ
+  mu <- as.vector(X %*% beta) # μ = Xβ
   F <- t(X) %*% (weight*(y / mu - 1)) # ∂li/∂γj; or F =  diag(yi/µi−1).X.diag(β) 
   grad_ll <- -F * beta # total derivative for all data
   grad_pen <- lambda * (beta * (S %*% beta)) # total gradient for penalty 
@@ -179,14 +169,14 @@ pen_nll0 <- pen_nll(gamma0, X, y, S, lambda)
 eps <- 1e-7
 for (i in 1:length(gamma0)) {
   gamma1 <- gamma0; gamma1[i] <- eps
-  pen_nll1 <- pen_nll(gamma1, X, y, S, lambda)
+  pen_nll1 <- pen_nll(gamma1,X,y,S,lambda)
   fd[i] <- (pen_nll1 - pen_nll0)/eps
 }
 fd; pen_grad(gamma0, X, y, S, lambda) ## already same
 range(fd - pen_grad(gamma0, X, y, S, lambda)) ## apx zero
 
 ##================ (3) Fit the model using BFGS optimization ===================
-gamma0 <- rep(0, K)  #start from all zero
+gamma0 <- rep(0, K)       # start from all zeros
 lambda <- 5e-5            # smoothing strength: larger -> smoother fitted curve
 
 # Use BFGS (a standard quasi-Newton optimizer) to minimize the objective
@@ -195,6 +185,7 @@ fit <- optim(
   fn      = pen_nll,                # objective function
   gr      = pen_grad,               # analytic gradient
   method  = "BFGS",                 # efficient for smooth problems
+  control = list(maxit = 1000),     # cap iterations
   X=X, y=y, S=S, lambda=lambda
 )
 
@@ -202,23 +193,18 @@ beta_hat <- exp(fit$par) # estimated spline coefficients (K-vector)
 mu_hat <- as.vector(X %*% beta_hat)
 
 deaths_df <- data.frame(day = t, deaths = y, fitted = mu_hat)
-infect_df <- data.frame(day = (min(t)-30):max(t),
-                        f_hat = as.vector(Xtilde %*% beta_hat))
+infect_df <- data.frame(day = (min(t)-30):max(t), f_hat = as.vector(Xtilde %*% beta_hat))
 
 # Combined Plot
 windows()
 ggplot() +
-  geom_point(data = deaths_df,
-             aes(x = day, y = deaths, color = "Observed Deaths"), size=1.5) +
-  geom_line(data = deaths_df,
-            aes(x = day, y = fitted, color = "Fitted Deaths"), size=1) +
-  geom_line(data = infect_df,
-            aes(x = day, y = f_hat, color = "New Infection f(t)"), size = 1) +
+  geom_point(data = deaths_df, aes(x = day, y = deaths, color = "Observed Deaths"), size=1.5) +
+  geom_line(data = deaths_df, aes(x = day, y = fitted, color = "Fitted Deaths"), size=1) +
+  geom_line(data = infect_df, aes(x = day, y = f_hat, color = "New Infection f(t)"), size = 1) +
   labs(
     x = "Day of year / Julian Day Observed",
     y = "Daily Deaths (Counts)",
-    title = expression(paste("Daily death and estimated number of infection,",
-                             lambda, "=5e-5")),
+    title = expression(paste("The daily death and estimated number of daily infection, ", lambda, "=5e-5")),
     color = "Legend"
   ) +
   scale_color_manual(
@@ -236,24 +222,24 @@ ggplot() +
   scale_y_continuous(sec.axis = sec_axis(~., name = expression(hat(f)(t))))
 
 
+
 ##================ (4) Fit the model using BFGS optimization ===================
-gamma2 <- fit$par
 lambdas <- exp(seq(-13, -7, length=50))
 BIC_vals <- numeric(length(lambdas))
 best_fit <- NULL
 
 for (i in seq_along(lambdas)) {
-  fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
-               X=X, y=y, S=S, lambda=lambdas[i])
+  fit <- optim(par=gamma0, fn=pen_nll, gr=pen_grad, method="BFGS",
+               X=X, y=y, S=S, lambda=lambdas[i], control=list(maxit=1000))
   beta_hat <- exp(fit$par)
-  mu_hat <- X %*% beta_hat
+  mu_hat <- as.vector(X %*% beta_hat)
   W <- diag(as.vector(y / mu_hat^2))
   H0 <- t(X) %*% W %*% X
   H_lambda <- H0 + lambdas[i] * S
   EDF <- sum(diag(solve(H_lambda, H0)))
-  penalty <- 0.5 * lambdas[i] * t(beta_hat) %*% (S %*% beta_hat) # penalty
-  ll = -fit$value + penalty
+  ll <- sum(y * log(mu_hat) - mu_hat)
   BIC_vals[i] <- -2 * ll + log(length(y)) * EDF
+  if (is.null(best_fit) || BIC_vals[i] < min(BIC_vals[1:i])) best_fit <- fit
 }
 
 best_lambda <- lambdas[which.min(BIC_vals)]
@@ -268,12 +254,13 @@ mat_boots <- matrix(NA, nrow=nrow(mats$Xtilde), ncol=n_bootstrap)
 
 for (b in 1:n_bootstrap) {
   wb <- tabulate(sample(n, replace=TRUE), n)
-  fit_b <- optim(gamma2, 
+  fit_b <- optim(rep(0, ncol(X)), 
                  pen_nll, gr=pen_grad, 
                  method="BFGS",
                  y=y, X=X, S=S, 
                  lambda=best_lambda, 
-                 weight=wb)
+                 weight=wb, 
+                 control=list(maxit=1000))
   beta_b <- exp(fit_b$par)
   mat_boots[,b] <- mats$Xtilde %*% beta_b ## estimate number of new infection
 }
@@ -281,21 +268,22 @@ for (b in 1:n_bootstrap) {
 ##=====================(6) Final Plot===========================================
 
 # Estimate the daily new infection rate f(t) with its 95% confidence limits
-infect <- data.frame(time_ft=(min(t)-30):max(t), 
+infect = data.frame(time_ft=(min(t)-30):max(t), 
                     mean_ft=rowMeans(mat_boots), #estimated mean of f(t)
                     sd_ft=apply(mat_boots,1,sd), #estimated sd of f(t)
                     
                     # apply is used for calculate quantile per row/observed days
-                    lb_ft=apply(mat_boots, 1, quantile, probs=0.025),
-                    ub_ft = apply(mat_boots, 1, quantile, probs=0.975)
+                    lb_ft=t(apply(mat_boots,1, #lower bound, take the first row
+                              function(x) quantile(x,c(0.025,0.975))))[,1],
+                    ub_ft=t(apply(mat_boots,1, #upper bound, take the second row
+                              function(x) quantile(x,c(0.025,0.975))))[,2]
                     )
 
 # Estimate death and observed death
-beta_hat <- exp(gamma2) # 
+beta_hat <- exp(best_fit$par) # 
 mu_hat <- as.vector(X %*% beta_hat) # mean deaths per day (from based fit model)
 deaths <- data.frame(day = t, deaths = y, model_fit = mu_hat)
 
-windows()
 # Final Plot (Bootstrap)
 ggplot() +
   ## Add 95% CI to plot
@@ -373,6 +361,10 @@ ggplot() +
     legend.spacing.y  = unit(0.05, "lines"),
     legend.margin = margin(2, 2, 2, 2)
   )
+
+
+
+
 
 end <- Sys.time()
 end-start
