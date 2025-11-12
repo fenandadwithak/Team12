@@ -69,11 +69,11 @@ make_matrices <- function(t, K=80) {
   # for as many as K+4 evenly spaced, so there will be a sequence of 84 numbers
   
   # Define Knots
-  internal_knots <- seq(min(t)-30, max(t), length.out = K-2)
-  range_knot = internal_knots[3]-internal_knots[2]
-  before_knots = internal_knots[1] - 3:1*range_knot
-  after_knots = internal_knots[length(internal_knots)] + 1:3*range_knot
-  full_knots = c(before_knots, internal_knots, after_knots)
+  internal_knots <- seq(min(t) - 30, max(t), length.out = K - 2)
+  step <- diff(internal_knots[2:3])
+  full_knots <- c(internal_knots[1] - step * 3:1,
+                  internal_knots,
+                  internal_knots[length(internal_knots)] + step * 1:3)
   
   Xtilde <- splineDesign(knots=full_knots, 
                          x=(min(t)-30):max(t), 
