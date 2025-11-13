@@ -330,24 +330,24 @@ ggplot() +
   ## Add 95% CI to plot
   geom_ribbon(
     data = infect,
-    aes(x = time_ft, ymin = lb_ft, ymax = ub_ft, fill = "CI")
+    aes(x = day, ymin = lb_ft, ymax = ub_ft, fill = "CI")
   ) +
   ## Add point represents death recorded from nhs data
   geom_point(
     data = deaths,
-    aes(x = day, y = deaths, color = "Observed Deaths"),
+    aes(x = day, y = obs_death, color = "Observed Deaths"),
     size = 1.5
   ) +
   ## Add line represents estimated death
   geom_line(
     data = deaths,
-    aes(x = day, y = mu_hat, color = "Fitted Deaths"),
+    aes(x = day, y = est_death, color = "Fitted Deaths"),
     size = 1
   ) +
   ## Add line represents estimated f(t) based on 200 replicates data
   geom_line(
     data = infect,
-    aes(x = time_ft, y = mean_ft, color = "New Infection f(t)"),
+    aes(x = day, y = ft, color = "New Infection f(t)"),
     size = 1
   ) +
   ## Add label
@@ -391,6 +391,8 @@ ggplot() +
     )
   ) +
   theme_bw()
+
+commit message, minor rev on plot
 
 end <- Sys.time()
 end-start
