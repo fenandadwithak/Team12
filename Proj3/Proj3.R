@@ -90,7 +90,7 @@ make_matrices <- function(t, K=80) {
   # internal knots: K-2 points spanning the modelling range of f(t)
   internal_knots <- seq(min(t) - 30, max(t), length.out = K - 2)
   step <- diff(internal_knots[2:3]) #calculating space between adjacent knots
-  #constructing full knots sequence up to total of K+4=84
+  #constructing full knots sequence up to total of K + 4 = 84
   full_knots <- c(internal_knots[1] - step * 3:1, #3 exterior knots before
                   internal_knots, #internal knots
                   internal_knots[length(internal_knots)] + step * 1:3)
@@ -137,8 +137,9 @@ Xtilde <- mats$Xtilde ## X tilde
 #        where  μ = Xβ
 #        Also, we drop log(yi!) as it does not depends on parameter
 #   
-# NLL = ∑(Xβ−y⋅log(Xβ))[Negative loglikelihood function]
-#       where β=exp(γ) (imposed for positivity)
+# NLL = - ∑(Xβ−y⋅log(Xβ))[Negative loglikelihood function], where μ = X β and 
+#       β=exp(γ). The exponential reparameterisation ensures β>0.
+#
 # Then, the penalty is applied to β (control smoothness of the function), 
 #       P = 0.5λβ'Sβ
 
@@ -157,12 +158,12 @@ pen_nll <- function(gamma, X, y, S, lambda, weight=1) {
   # Output/Return  : single numeric value of pen_nll
   beta <- exp(gamma) # β = exp(γ)
   mu <- as.vector(X %*% beta) # μ = Xβ
+  #ll formulae dropping the constant of lgamma(y+1)
   ll <- sum(weight*((y * log(mu)) - mu))
   # likelihood funct of possion dist
   penalty <- 0.5 * lambda * t(beta) %*% (S %*% beta) # penalty
   return(-ll + penalty)
 }##pen_nll
-
 
 # Define Gradient vector of Objective Function/ its derivative vector 
 pen_grad <- function(gamma, X, y, S, lambda, weight=1) {
@@ -174,8 +175,7 @@ pen_grad <- function(gamma, X, y, S, lambda, weight=1) {
   #                  (5) weight : weight for bootstraping sampled data
   #                      adjusted for more general use in this case
   
-  
-  beta <- exp(gamma) # β = exp(γ)
+  beta <- exp(gamma) # β = exp(γ), ensures positivity
   mu <- X %*% beta # μ = Xβ
   F <- t(X) %*% (weight*(y / mu - 1)) # ∂li/∂γj; or F =  diag(yi/µi−1).X.diag(β) 
   grad_ll <- -F * beta # total derivative for all data
@@ -185,8 +185,8 @@ pen_grad <- function(gamma, X, y, S, lambda, weight=1) {
 
 # Checking the derivative (From SP Notes pg 74)
 K <- 80
-fd <- gamma0 <- rep(0, K)       # start from all zeros
-lambda <- 5e-5
+fd <- gamma0 <- rep(0, K) #start from all zeros
+lambda <- 5e-5 
 pen_nll0 <- pen_nll(gamma0, X, y, S, lambda) 
 eps <- 1e-7
 for (i in 1:length(gamma0)) {
@@ -194,14 +194,14 @@ for (i in 1:length(gamma0)) {
   pen_nll1 <- pen_nll(gamma1,X,y,S,lambda)
   fd[i] <- (pen_nll1 - pen_nll0)/eps
 }
-fd; pen_grad(gamma0, X, y, S, lambda) ## already same
-range(fd - pen_grad(gamma0, X, y, S, lambda)) ## apx zero
+range(fd - pen_grad(gamma0, X, y, S, lambda)) ## apx zero, correct gradient
 
 ##================ (3) Fit the model using BFGS optimization ===================
-gamma0 <- rep(0, K)       # start from all zeros
-lambda <- 5e-5            # smoothing strength: larger -> smoother fitted curve
+gamma0 <- rep(0, K)       # initial values for gamma
+lambda <- 5e-5            # fixed smoothing parameter for sanity check
 
-# Use BFGS (a standard quasi-Newton optimizer) to minimize the objective
+#minimise the penalised negative log-likelihood using BFGS.
+#the analytic gradient (pen_grad) is supplied to improve optimisation stability
 fit <- optim(
   par     = gamma0,                 # initial gamma
   fn      = pen_nll,                # objective function
@@ -210,14 +210,17 @@ fit <- optim(
   X=X, y=y, S=S, lambda=lambda
 )
 
-beta_hat <- exp(fit$par) # estimated spline coefficients (K-vector)
-mu_hat <- as.vector(X %*% beta_hat)
+beta_hat <- exp(fit$par) #estimated spline coefficients - beta hat
+mu_hat <- as.vector(X %*% beta_hat) #fitted deaths - mu hat
 
+# Construct data frames for plotting:
+#   deaths_df : observed deaths and fitted deaths
+#   infect_df : estimated infection curve f̂(t) = Xtilde*beta hat
 deaths_df <- data.frame(day = t, deaths = y, fitted = mu_hat)
 infect_df <- data.frame(day = (min(t)-30):max(t),
                         f_hat = as.vector(Xtilde %*% beta_hat))
 
-# Combined Plot
+# Plot the observed deaths, fitted deaths, and estimated infection curve f(t)
 windows()
 ggplot() +
   geom_point(data = deaths_df,
@@ -247,7 +250,6 @@ ggplot() +
   ) +
   scale_y_continuous(sec.axis = sec_axis(~., name = expression(hat(f)(t))))
 
-
 ##================ (4) Fit the model using BFGS optimization ===================
 gamma2 <- fit$par
 lambdas <- exp(seq(-13, -7, length=50))
@@ -268,8 +270,8 @@ for (i in seq_along(lambdas)) {
 
 #plot BIC against lambda
 best_lambda <- lambdas[which.min(BIC_vals)]
+windows()
 plot(seq_along(lambdas), BIC_vals)
-
 cat("Best lambda:", best_lambda, "\n")
 
 ##=============== (5) Non Parametric Bootstrap Uncertainty =====================
