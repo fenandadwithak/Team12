@@ -196,7 +196,7 @@ for (i in 1:length(gamma0)) {
 }
 range(fd - pen_grad(gamma0, X, y, S, lambda)) ## apx zero, correct gradient
 
-##================ (3) Fit the model using BFGS optimization ===================
+##================ (3) Finding the sane starting values for gamma ===================
 gamma0 <- rep(0, K)       # initial values for gamma
 lambda <- 5e-5            # fixed smoothing parameter for sanity check
 
@@ -224,11 +224,14 @@ infect_df <- data.frame(day = (min(t)-30):max(t),
 windows()
 ggplot() +
   geom_point(data = deaths_df,
-             aes(x = day, y = deaths, color = "Observed Deaths"), size=1.5) +
+             aes(x = day, y = deaths, 
+                 color = "Observed Deaths"), size=1.5) +
   geom_line(data = deaths_df,
-            aes(x = day, y = fitted, color = "Fitted Deaths"), size=1) +
+            aes(x = day, y = fitted, 
+                color = "Fitted Deaths"), size=1) +
   geom_line(data = infect_df,
-            aes(x = day, y = f_hat, color = "New Infection f(t)"), size = 1) +
+            aes(x = day, y = f_hat, 
+                color = "New Infection f(t)"), size = 1) +
   labs(
     x = "Day of year / Julian Day Observed",
     y = "Daily Deaths (Counts)",
@@ -242,16 +245,9 @@ ggplot() +
       "Fitted Deaths" = "red",
       "New Infection f(t)" = "blue"
     )) +
-  theme_bw() +
-  theme(
-    axis.title.y.left = element_text(color="black"),
-    axis.title.y.right = element_text(color="blue"),
-    legend.position = c(0.85, 0.75)
-  ) +
-  scale_y_continuous(sec.axis = sec_axis(~., name = expression(hat(f)(t))))
-
-##================ (4) Fit the model using BFGS optimization ===================
+  theme_bw()
 gamma2 <- fit$par
+##================ (4) Fit the model using BFGS optimization ===================
 lambdas <- exp(seq(-13, -7, length=50))
 BIC_vals <- numeric(length(lambdas))
 
