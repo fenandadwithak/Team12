@@ -305,15 +305,18 @@ for (b in 1:n_bootstrap) {
 lb_ft = apply(mat_boots, 1, quantile, probs=0.025) ##lowebound
 ub_ft = apply(mat_boots, 1, quantile, probs=0.975) ##upperbound
                     
-                    # apply is used for calculate quantile per row/observed days
-                    lb_ft = apply(mat_boots, 1, quantile, probs=0.025),
-                    ub_ft = apply(mat_boots, 1, quantile, probs=0.975)
-                    )
+##============================= (6) FINAL PLOT =================================
 
-# Estimate death and observed death
-beta_hat <- exp(gamma2) #
-mu_hat <- as.vector(X %*% beta_hat) # mean deaths per day (from based fit model)
-deaths <- data.frame(day = t, deaths = y, model_fit = mu_hat)
+# Define Dataset : Estimated Daily Number of New Infection
+infect <- data.frame(day=(min(t)-30):max(t),
+                     ft = ft,
+                     lb_ft = lb_ft,
+                     ub_ft = ub_ft)
+# Define Dataset : Estimated Daily Death and Observed Daily Death
+deaths <- data.frame(day = t,
+                     obs_death = y,
+                     est_death = mu_hat)
+
 
 # Final Plot (Bootstrap)
 ggplot() +
