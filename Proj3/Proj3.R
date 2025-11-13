@@ -276,10 +276,17 @@ points(min_BIC_index, BIC_vals[min_BIC_index],
 # Parameter (µ) when Lambda optimum
 fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
              X=X, y=y, S=S, lambda=lambdas[min_BIC_index])
-mu_hat <- fit$par
+beta_hat <- exp(fit$par)
+mu_hat <- X %*% beta_hat
+
+# Parameter (µ) when Lambda optimum
+fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
+             X=X, y=y, S=S, lambda=lambdas[min_BIC_index])
+beta_hat <- exp(fit$par)
+mu_hat <- X %*% beta_hat
 
 # Estimated Daily New Infection (ft)
-ft = Xtilde %*% exp(mu_hat)
+ft = Xtilde %*% beta_hat
 
 
 ##=============== (5) Non Parametric Bootstrap Uncertainty =====================
