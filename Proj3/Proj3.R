@@ -22,66 +22,86 @@ start <- Sys.time()
 # ==============================================================================
 ##                                  OUTLINE
 # ==============================================================================
-## What you get:
-## (1) 
-## (2) 
-## (3) 
-## (4) 
-## (5)
-## (6)
-
+# This script implements a full deconvolution model to infer the daily number
+# of new Covid-19 infections in England during 2020 from observed hospital
+# death counts. The work follows these steps:
+#
+# 1. Construct the matrices required for the model: 
+#       - X̃ : the B-spline basis matrix used to represent f(t)
+#       - X  : the corresponding model matrix for expected deaths, obtained by
+#              convolving X̃ with the infection-to-death delay distribution
+#       - S  : the second-difference penalty matrix controlling smoothness.
+#
+# 2. Write functions for the penalised negative log-likelihood and its gradient
+#    with respect to γ, where β = exp(γ) ensures positivity. Verify the gradient
+#    numerically using finite differences.
+#
+# 3. Fit the model with a fixed smoothing parameter λ = 5e-5 as an initial
+#    diagnostic check, and plot the observed deaths, fitted deaths, and the
+#    corresponding infection curve f(t) to confirm sensible behaviour.
+#
+# 4. Select the smoothing parameter by minimising the Bayesian Information
+#    Criterion (BIC). A grid of λ values is explored over log-scale
+#    seq(-13, -7, length = 50), and the effective degrees of freedom are
+#    computed from the Hessian at each fit.
+#
+# 5. Quantify uncertainty in the estimated infection curve using
+#    non-parametric bootstrap resampling. Bootstrap weights are generated and
+#    the model is refitted for 200 iterations to obtain a distribution of f(t).
+#
+# 6. Produce the final visual outputs: 
+#       - observed vs fitted hospital deaths, and 
+#       - the estimated infection trajectory f(t) with 95% bootstrap intervals
 
 ##===================== Data Preparation & Load library ========================
-library(splines) #load library splines
-library(ggplot2)
+library(splines) #provides functions for constructing B-spline basis matrices
+library(ggplot2) #used later for plotting fitted deaths and infection curves
 
-df <- read.table("engcov.txt", header = TRUE) # import datasets
-y <- df$nhs; t <- df$julian
-n <- length(y) # define total observation 
-d <- 1:80; edur <- 3.151; sdur <- .469
-pd <- dlnorm(d, edur, sdur) # density (PDF) function of death
-pd <- pd / sum(pd) # probability of death
+df <- read.table("engcov.txt", header = TRUE) #load covid-19 deaths datasets
+y <- df$nhs #observed deaths on each day
+t <- df$julian #corresponding day-of-year in 2020
+n <- length(y) #total observation
+
+#probability distribution for the delay from infection to death (1–80 days)
+d <- 1:80; edur <- 3.151 #mean (on log-scale) of log-normal delay distribution
+sdur <- .469 #sd (on log-scale)
+pd <- dlnorm(d, edur, sdur) #unnormalised probabilities
+pd <- pd / sum(pd) #normalise to sum to 1
 
 ##==================== (1) Construct X, Xtilde, and S ==========================
 make_matrices <- function(t, K=80) {
-  # Function to construct matrices (Xtilde, X, S) required for predicting 
-  #  number of new infections occuring on day t which expressed by an infection 
-  #  rate function f(t)
-  
-  # Input/Arguments :(1) t, a vector of day since 2020. In this dataset, we use 
-  #                      julian
-  #                  (2) K, number of basis function, set to 80
-  #                      larger K gives a more flexible/wigglier basis
+  # Function to construct the matrices required for the deconvolution model:
+  #   - Xtilde : B-spline basis for representing f(t)
+  #   - X      : model matrix mapping beta to expected deaths (via convolution)
+  #   - S      : second-difference penalty matrix for smoothing beta
   #
-  # Output/Return   :(1) Xtilde, a model matrix (spline basis) to predict f(t) 
-  #                      f(t) = b1(t)β1 + b2(t)β2 + ... + bk(t)βk
-  #                      row : days; colomn : B-spline basis function
-  #                  (2) X, model matrix for the expected death count (the 
-  #                      observed outcome), after convolution with Xtilde and 
-  #                      π(j)/probability func. for days from infection to death 
-  #                  (3) S, penalised matrix. Matrix defining which aspect of β
-  #                      are penalised
+  # Arguments:
+  #   t : vector of observation days (Julian day of 2020)
+  #   K : number of B-spline basis functions (default 80)
+  #
+  # Returns:
+  #   A list containing Xtilde, X, and S.
   
-  # Construct X_tilde
-  # Define a sequence starting from the first day of death recorded minus 30
-  # (min(t)-30) because for the earliest records, deaths might be caused by the
-  # infection happened around 30 days ago, until maximum day observed (max(t))
-  # for as many as K+4 evenly spaced, so there will be a sequence of 84 numbers
+  ## ----- Construct Xtilde (spline basis for f(t)) -----
+  # Internal knots run from (min death day - 30) to max death day.
+  # The subtraction of 30 allows f(t) to include infections up to ~30 days
+  # before the first recorded death.
   
-  # Define Knots
+  # internal knots: K-2 points spanning the modelling range of f(t)
   internal_knots <- seq(min(t) - 30, max(t), length.out = K - 2)
-  step <- diff(internal_knots[2:3])
-  full_knots <- c(internal_knots[1] - step * 3:1,
-                  internal_knots,
+  step <- diff(internal_knots[2:3]) #calculating space between adjacent knots
+  #constructing full knots sequence up to total of K+4=84
+  full_knots <- c(internal_knots[1] - step * 3:1, #3 exterior knots before
+                  internal_knots, #internal knots
                   internal_knots[length(internal_knots)] + step * 1:3)
+                  #3 exterior knots after
   
+  #construct matrix X-tilde using splineDesign with 84 knots as defined 
+  #before starting from min(t)-30 until max(t) with order of the spline = 4
   Xtilde <- splineDesign(knots=full_knots, 
                          x=(min(t)-30):max(t), 
                          ord=4, # cubic splines
-                         outer.ok= TRUE)#construct matrix X-tilde using 
-                                        #splineDesign with 84 knots as defined 
-                                        #before starting from min(t)-30 until 
-                                        #max(t) with order of the spline = 4
+                         outer.ok= TRUE)
   
   # Construct X
   X <- matrix(0, nrow=length(t), ncol=ncol(Xtilde)) # initialize matrix to store
@@ -102,9 +122,9 @@ make_matrices <- function(t, K=80) {
   list(Xtilde=Xtilde, X=X, S=S) ## return the output into a list 
 }##make_matrices
 
-mats <- make_matrices(t) #
+mats <- make_matrices(t) #construct matrices for the observed days
 X <- mats$X ## X
-S <- mats$S ## S
+S <- mats$S ## S (second-difference penalty)
 Xtilde <- mats$Xtilde ## X tilde
 
 ##============= (2) Function Penalised NLL and its Objective Func. =============
