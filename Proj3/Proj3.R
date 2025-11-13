@@ -264,11 +264,20 @@ for (i in seq_along(lambdas)) {
   BIC_vals[i] <- -2 * ll + log(length(y)) * EDF
 }
 
-#plot BIC against lambda
-best_lambda <- lambdas[which.min(BIC_vals)]
-windows()
-plot(seq_along(lambdas), BIC_vals)
-cat("Best lambda:", best_lambda, "\n")
+# Plot BIC against lambda
+min_BIC_index = which.min(BIC_vals)
+best_lambda <- lambdas[min_BIC_index] ## Optimum Lambda
+plot(seq_along(lambdas), BIC_vals, type = "o",
+     xlab = expression(lambda), ylab = "BIC",
+     main = "BIC vs. Lambda")
+points(min_BIC_index, BIC_vals[min_BIC_index],
+       col = "red", pch = 19, cex = 1.5)
+
+# Parameter (µ) when Lambda optimum
+fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
+             X=X, y=y, S=S, lambda=lambdas[min_BIC_index])
+mu_hat <- fit$par
+
 
 ##=============== (5) Non Parametric Bootstrap Uncertainty =====================
 # Initialize number of replicate sample
