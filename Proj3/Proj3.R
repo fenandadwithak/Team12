@@ -278,6 +278,9 @@ fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
              X=X, y=y, S=S, lambda=lambdas[min_BIC_index])
 mu_hat <- fit$par
 
+# Estimated Daily New Infection (ft)
+ft = Xtilde %*% exp(mu_hat)
+
 
 ##=============== (5) Non Parametric Bootstrap Uncertainty =====================
 # Initialize number of replicate sample
@@ -298,12 +301,9 @@ for (b in 1:n_bootstrap) {
   mat_boots[,b] <- Xtilde %*% beta_b ## estimate number of new infection
 }
 
-##=====================(6) Final Plot===========================================
-
-# Estimate the daily new infection rate f(t) with its 95% confidence limits
-infect <- data.frame(time_ft=(min(t)-30):max(t), 
-                    mean_ft=rowMeans(mat_boots), #estimated mean of f(t)
-                    sd_ft=apply(mat_boots,1,sd), #estimated sd of f(t)
+# Construct 95% Confidence Limits
+lb_ft = apply(mat_boots, 1, quantile, probs=0.025) ##lowebound
+ub_ft = apply(mat_boots, 1, quantile, probs=0.975) ##upperbound
                     
                     # apply is used for calculate quantile per row/observed days
                     lb_ft = apply(mat_boots, 1, quantile, probs=0.025),
