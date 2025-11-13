@@ -268,10 +268,11 @@ for (i in seq_along(lambdas)) {
 # Plot BIC against lambda
 min_BIC_index = which.min(BIC_vals)
 best_lambda <- lambdas[min_BIC_index] ## Optimum Lambda
-plot(seq_along(lambdas), BIC_vals, type = "o",
-     xlab = expression(lambda), ylab = "BIC",
-     main = "BIC vs. Lambda")
-points(min_BIC_index, BIC_vals[min_BIC_index],
+plot(log(lambdas), BIC_vals, type = "o",
+     xlab = expression(log(lambda)),
+     ylab = "BIC",
+     main = expression("BIC vs. " * log(lambda)))
+points(log(lambdas[min_BIC_index]), BIC_vals[min_BIC_index],
        col = "red", pch = 19, cex = 1.5)
 
 # Parameter (µ) when Lambda optimum
