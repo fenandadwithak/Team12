@@ -212,6 +212,7 @@ fit <- optim(
 
 beta_hat <- exp(fit$par) #estimated spline coefficients - beta hat
 mu_hat <- as.vector(X %*% beta_hat) #fitted deaths - mu hat
+gamma2 <- fit$par #sane starting values for gamma
 
 # Construct data frames for plotting:
 #   deaths_df : observed deaths and fitted deaths
@@ -246,7 +247,7 @@ ggplot() +
       "New Infection f(t)" = "blue"
     )) +
   theme_bw()
-gamma2 <- fit$par
+
 ##================ (4) Fit the model using BFGS optimization ===================
 lambdas <- exp(seq(-13, -7, length=50))
 BIC_vals <- numeric(length(lambdas))
