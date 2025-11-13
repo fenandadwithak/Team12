@@ -380,18 +380,7 @@ ggplot() +
       )
     )
   ) +
-  theme_bw() +
-  # Adjust position
-  theme(
-    legend.position = c(0.85, 0.75),
-    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
-    legend.box.background = element_rect(color = "gray70", linetype = "dotted"),
-    legend.title = element_text(face = "bold"),
-    legend.key.height = unit(0.4, "lines"),
-    legend.key.width  = unit(1, "lines"),
-    legend.spacing.y  = unit(0.05, "lines"),
-    legend.margin = margin(2, 2, 2, 2)
-  )
+  theme_bw()
 
 end <- Sys.time()
 end-start
