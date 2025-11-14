@@ -36,8 +36,9 @@ start <- Sys.time()
 #    numerically using finite differences.
 #
 # 3. Fit the model with a fixed smoothing parameter λ = 5e-5 as an initial
-#    diagnostic check, and plot the observed deaths, fitted deaths, and the
-#    corresponding infection curve f(t) to confirm sensible behaviour.
+#    diagnostic check, find the sane starting values for γ and plot 
+#    the observed deaths, fitted deaths, and the corresponding infection curve 
+#    f(t) to confirm sensible behaviour.
 #
 # 4. Select the smoothing parameter by minimising the Bayesian Information
 #    Criterion (BIC). A grid of λ values is explored over log-scale
@@ -81,7 +82,7 @@ make_matrices <- function(t, K=80) {
   # Returns:
   #   A list containing Xtilde, X, and S.
   
-  ## ----- Construct Xtilde (spline basis for f(t)) -----
+  # ----- Construct Xtilde (spline basis for f(t)) 
   # Internal knots run from (min death day - 30) to max death day.
   # The subtraction of 30 allows f(t) to include infections up to ~30 days
   # before the first recorded death.
@@ -210,7 +211,7 @@ fit <- optim(
 
 beta_hat <- exp(fit$par) #estimated spline coefficients - beta hat
 mu_hat <- as.vector(X %*% beta_hat) #fitted deaths - mu hat
-gamma2 <- fit$par #sane starting values for gamma
+gamma_init <- fit$par #sane starting values for gamma/initial gamma
 
 # Construct data frames for plotting:
 #   deaths_df : observed deaths and fitted deaths
@@ -233,7 +234,7 @@ ggplot() +
                 color = "New Infection f(t)"), size = 1) +
   labs(
     x = "Day of year / Julian Day Observed",
-    y = "Daily Deaths (Counts)",
+    y = "Number of observation (Counts)",
     title = expression(paste("Daily death and estimated number of infection,",
                              lambda, "=5e-5")),
     color = "Legend"
@@ -253,10 +254,10 @@ BIC_vals <- numeric(length(lambdas)) #prepare a vector to store BIC_vals
 
 for (i in seq_along(lambdas)) { #loop over lambdas sequence
   # Fit the penalised model using BFGS optimisation
-  #    - gamma2 is the starting value from the initial sanity check
+  #    - gamma_init is the starting value from the initial sanity check
   #    - pen_nll is the penalised negative log-likelihood
   #    - pen_grad is the analytic gradient
-  fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
+  fit <- optim(par=gamma_init, fn=pen_nll, gr=pen_grad, method="BFGS",
                X=X, y=y, S=S, lambda=lambdas[i])
   
   # Convert fitted gamma to beta (β = exp(γ))
@@ -304,21 +305,13 @@ plot(log(lambdas), BIC_vals, type = "o",
 points(log(lambdas[min_BIC_index]), BIC_vals[min_BIC_index],
        col = "red", pch = 19, cex = 1.5)
 
-# Parameter (µ) when Lambda optimum
-fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
+# Expected value of daily death (µ) when Lambda optimum
+fit <- optim(par=gamma_init, fn=pen_nll, gr=pen_grad, method="BFGS",
              X=X, y=y, S=S, lambda=lambdas[min_BIC_index])
-beta_hat <- exp(fit$par)
-mu_hat <- X %*% beta_hat
+beta_hat <- exp(fit$par) ## β
+mu_hat <- X %*% beta_hat ## μ = Xβ
 
-# Refit model using optimal lambda
-fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
-             X=X, y=y, S=S, lambda=lambdas[min_BIC_index])
-
-# Extract coefficcients and fitted deaths
-beta_hat <- exp(fit$par)
-mu_hat <- X %*% beta_hat
-
-# Estimated Daily New Infection (ft)
+# Estimated Daily New Infection (ft) when Lambda optimum
 ft <- Xtilde %*% beta_hat
 
 ##=============== (5) Non Parametric Bootstrap Uncertainty =====================
@@ -335,12 +328,12 @@ for (b in 1:n_bootstrap) {
   wb <- tabulate(sample(n, replace=TRUE), n)
   
   # Fit penalised model with bootstrap weights
-  fit_b <- optim(gamma2, 
+  fit_b <- optim(gamma_init, 
                  pen_nll, gr=pen_grad, 
                  method="BFGS",
                  y=y, X=X, S=S, 
                  lambda=best_lambda, 
-                 weight=wb)
+                 weight=wb) ## insert weight
   
   # Compute β̂ and f̂(t) for this bootstrap sample
   beta_b <- exp(fit_b$par)
@@ -370,19 +363,19 @@ ggplot() +
     data = infect,
     aes(x = day, ymin = lb_ft, ymax = ub_ft, fill = "CI")
   ) +
-  ## Add point represents death recorded from nhs data
+  ## Add point represents daily death recorded from nhs data
   geom_point(
     data = deaths,
     aes(x = day, y = obs_death, color = "Observed Deaths"),
     size = 1.5
   ) +
-  ## Add line represents estimated death
+  ## Add line represents estimated daily death
   geom_line(
     data = deaths,
     aes(x = day, y = est_death, color = "Fitted Deaths"),
     size = 1
   ) +
-  ## Add line represents estimated f(t) based on 200 replicates data
+  ## Add line represents estimated daily new infection
   geom_line(
     data = infect,
     aes(x = day, y = ft, color = "New Infection f(t)"),
@@ -391,7 +384,7 @@ ggplot() +
   ## Add label
   labs(
     x = "Day of year / Julian Day Observed",
-    y = "Daily Deaths (Counts)",
+    y = "Number of Observation (Count)",
     title = "The daily death and estimated number of daily infection",
     color = "Legend",
     fill = "Legend"
@@ -407,28 +400,29 @@ ggplot() +
   ) +
   ## Add legend for CI
   scale_fill_manual(
-    values = c("CI" = rgb(0.53, 0.81, 0.98, 0.25)),
+    values = c("CI" = rgb(0.53, 0.81, 0.98, 0.25)), # CI color
     guide = "legend"
   ) +
+  ## Customise legend for line & points (color) and ribbon (fill)
   guides(
     color = guide_legend(
-      title = "Legend",
-      order = 1,
-      override.aes = list(fill = NA)
+      title = "Legend", # define title 
+      order = 1,  # control order of legend in legend box
+      override.aes = list(fill = NA) # don't fill symbols for color legend
     ),
     fill = guide_legend(
       title = NULL, ## no titles for CI's legend
-      order = 1,
+      order = 1, 
       override.aes = list(
-        linetype = 0,
-        shape = 22,
-        size = 5,
-        color = NA,
-        fill = rgb(0.53, 0.81, 0.98, 0.25)
+        linetype = 0, # no border lines for CI's legend
+        shape = 22, # Add filled square symbol CI's legend
+        size = 5, # customise symbol size
+        color = NA, # no outline color 
+        fill = rgb(0.53, 0.81, 0.98, 0.25) #match symbol color with values color
       )
     )
   ) +
-  theme_bw()
+  theme_bw() # add black-white theme
 
 end <- Sys.time()
 end-start
