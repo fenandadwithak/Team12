@@ -51,7 +51,7 @@ start <- Sys.time()
 #
 # 6. Produce the final visual outputs: 
 #       - observed vs fitted hospital deaths, and 
-#       - the estimated infection trajectory f(t) with 95% bootstrap intervals
+#       - the estimated infection trajectory f(t) with 95% confidence  limits
 
 ##===================== Data Preparation & Load library ========================
 library(splines) #provides functions for constructing B-spline basis matrices
@@ -180,7 +180,7 @@ pen_grad <- function(gamma, X, y, S, lambda, weight=1) {
   grad_ll <- -F * beta # total derivative for all data
   grad_pen <- lambda * (beta * (S %*% beta)) # total gradient for penalty 
   return(as.vector(grad_ll + grad_pen))
-}
+}##pen_grad
 
 # Checking the derivative (From SP Notes pg 74)
 K <- 80
@@ -340,7 +340,7 @@ for (b in 1:n_bootstrap) {
   mat_boots[,b] <- Xtilde %*% beta_b ## estimate number of new infection
 }
 
-# Construct 95% Confidence intervals
+# Construct 95% Confidence Limits
 lb_ft = apply(mat_boots, 1, quantile, probs=0.025) ##lowebound
 ub_ft = apply(mat_boots, 1, quantile, probs=0.975) ##upperbound
                     
