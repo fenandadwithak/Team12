@@ -1,6 +1,5 @@
 start <- Sys.time()
 ##=============== PROJECT 3 - EXTENDED STATISTICAL PROGRAMMING =================
-
 # Group 12 
 # Aseel Alghamdi : S2901228
 # Fenanda Dwitha Kurniasari : S2744048
@@ -128,7 +127,6 @@ S <- mats$S ## S (second-difference penalty)
 Xtilde <- mats$Xtilde ## X tilde
 
 ##============= (2) Function Penalised NLL and its Objective Func. =============
-
 # In this part, we define objective function to be optimised. For this case, 
 # it's already given that f(t) has possion GLM distribution
 
@@ -159,7 +157,7 @@ pen_nll <- function(gamma, X, y, S, lambda, weight=1) {
   beta <- exp(gamma) # β = exp(γ)
   mu <- as.vector(X %*% beta) # μ = Xβ
   #ll formulae dropping the constant of lgamma(y+1)
-  ll <- sum(weight*((y * log(mu)) - mu))
+  ll <- sum(weight*((y * log(mu)) - mu - lgamma(y+1)))
   # likelihood funct of possion dist
   penalty <- 0.5 * lambda * t(beta) %*% (S %*% beta) # penalty
   return(-ll + penalty)
@@ -196,7 +194,7 @@ for (i in 1:length(gamma0)) {
 }
 range(fd - pen_grad(gamma0, X, y, S, lambda)) ## apx zero, correct gradient
 
-##================ (3) Finding the sane starting values for gamma ===================
+##============== (3) Finding the sane starting values for gamma ================
 gamma0 <- rep(0, K)       # initial values for gamma
 lambda <- 5e-5            # fixed smoothing parameter for sanity check
 
@@ -249,29 +247,60 @@ ggplot() +
   theme_bw()
 
 ##================ (4) Fit the model using BFGS optimization ===================
+# Create a grid of lambda values on the log-scale (from exp(-13) to exp(-7))
 lambdas <- exp(seq(-13, -7, length=50))
-BIC_vals <- numeric(length(lambdas))
+BIC_vals <- numeric(length(lambdas)) #prepare a vector to store BIC_vals
 
-for (i in seq_along(lambdas)) {
+for (i in seq_along(lambdas)) { #loop over lambdas sequence
+  # Fit the penalised model using BFGS optimisation
+  #    - gamma2 is the starting value from the initial sanity check
+  #    - pen_nll is the penalised negative log-likelihood
+  #    - pen_grad is the analytic gradient
   fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
                X=X, y=y, S=S, lambda=lambdas[i])
+  
+  # Convert fitted gamma to beta (β = exp(γ))
   beta_hat <- exp(fit$par)
+  
+  # Compute fitted mean deaths μ = Xβ
   mu_hat <- as.vector(X %*% beta_hat)
+  
+  # Construct the Fisher information matrix for Poisson GLM:
+  #   W = diag(μ)
+  #   H0 = Xᵀ W X  (unpenalised Hessian)
   W <- diag(as.vector(y / mu_hat^2))
   H0 <- t(X) %*% W %*% X
+  
+  # Penalised Hessian: Hλ = H0 + λS
   H_lambda <- H0 + lambdas[i] * S
+  
+  # Effective Degrees of Freedom = trace(Hλ⁻¹ H0)
   EDF <- sum(diag(solve(H_lambda, H0)))
-  ll <- sum(y * log(mu_hat) - mu_hat)
+  
+  # Compute the *penalty term* for the fitted coefficients
+  penalty <- 0.5 * lambdas[i] * t(beta_hat) %*% (S %*% beta_hat) # penalty
+  
+  # Recover the full log-likelihood:
+  # optim() returns the penalised NLL = -(ll) + penalty
+  # So: ll = -fit$value + penalty
+  ll = -fit$value + penalty
+  
+  # Compute BIC = -2 * log-likelihood + log(n) * EDF
   BIC_vals[i] <- -2 * ll + log(length(y)) * EDF
 }
 
-# Plot BIC against lambda
-min_BIC_index = which.min(BIC_vals)
+# Identify the index of the lambda value that minimises BIC
+min_BIC_index <- which.min(BIC_vals) #store minimum BIC lambda index
 best_lambda <- lambdas[min_BIC_index] ## Optimum Lambda
+
+# Plot BIC against lambda
+windows()
 plot(log(lambdas), BIC_vals, type = "o",
      xlab = expression(log(lambda)),
      ylab = "BIC",
      main = expression("BIC vs. " * log(lambda)))
+
+# Mark the optimal lambda with a red point
 points(log(lambdas[min_BIC_index]), BIC_vals[min_BIC_index],
        col = "red", pch = 19, cex = 1.5)
 
@@ -281,41 +310,48 @@ fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
 beta_hat <- exp(fit$par)
 mu_hat <- X %*% beta_hat
 
-# Parameter (µ) when Lambda optimum
+# Refit model using optimal lambda
 fit <- optim(par=gamma2, fn=pen_nll, gr=pen_grad, method="BFGS",
              X=X, y=y, S=S, lambda=lambdas[min_BIC_index])
+
+# Extract coefficcients and fitted deaths
 beta_hat <- exp(fit$par)
 mu_hat <- X %*% beta_hat
 
 # Estimated Daily New Infection (ft)
-ft = Xtilde %*% beta_hat
-
+ft <- Xtilde %*% beta_hat
 
 ##=============== (5) Non Parametric Bootstrap Uncertainty =====================
-# Initialize number of replicate sample
+# Initialise number of replicate sample
 n_bootstrap <- 200 
 
-# Initialize matrix to store bootstrap replicates
+# Matrix to store bootstrap infection curves
 mat_boots <- matrix(NA, nrow=nrow(Xtilde), ncol=n_bootstrap)
 
+# Perform 200 bootstrap refits
 for (b in 1:n_bootstrap) {
+  
+  # Bootstrap weights (multinomial re-sampling)
   wb <- tabulate(sample(n, replace=TRUE), n)
+  
+  # Fit penalised model with bootstrap weights
   fit_b <- optim(gamma2, 
                  pen_nll, gr=pen_grad, 
                  method="BFGS",
                  y=y, X=X, S=S, 
                  lambda=best_lambda, 
                  weight=wb)
+  
+  # Compute β̂ and f̂(t) for this bootstrap sample
   beta_b <- exp(fit_b$par)
   mat_boots[,b] <- Xtilde %*% beta_b ## estimate number of new infection
 }
 
-# Construct 95% Confidence Limits
+# Construct 95% Confidence intervals
 lb_ft = apply(mat_boots, 1, quantile, probs=0.025) ##lowebound
 ub_ft = apply(mat_boots, 1, quantile, probs=0.975) ##upperbound
                     
 ##============================= (6) FINAL PLOT =================================
-
 # Define Dataset : Estimated Daily Number of New Infection
 infect <- data.frame(day=(min(t)-30):max(t),
                      ft = ft,
@@ -326,8 +362,8 @@ deaths <- data.frame(day = t,
                      obs_death = y,
                      est_death = mu_hat)
 
-
-# Final Plot (Bootstrap)
+# Final Plot: fitted deaths, observed deaths, infection curve, and CI
+windows()
 ggplot() +
   ## Add 95% CI to plot
   geom_ribbon(
@@ -393,8 +429,6 @@ ggplot() +
     )
   ) +
   theme_bw()
-
-commit message, minor rev on plot
 
 end <- Sys.time()
 end-start
